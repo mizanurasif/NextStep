@@ -13,6 +13,7 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "clsx": "^2.1.1",
+    "dayjs": "^1.11.23",
     "expo": "^57.0.30",
     "expo-constants": "~57.0.22",
     "expo-font": "~57.0.4",

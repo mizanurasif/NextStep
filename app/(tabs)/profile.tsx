@@ -7,7 +7,7 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 const SafeAreaView = styled(RNSafeAreaView);
 
-const Settings = () => {
+const Profile = () => {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -18,7 +18,7 @@ const Settings = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-background p-5">
-      <Text className="list-title">Settings</Text>
+      <Text className="list-title">Profile</Text>
       <View className="auth-card">
         <Text className="auth-label">Signed in as</Text>
         <Text className="auth-helper">{user?.email ?? 'Not signed in'}</Text>
@@ -30,4 +30,4 @@ const Settings = () => {
   )
 }
 
-export default Settings
+export default Profile

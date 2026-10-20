@@ -47,6 +47,38 @@ declare global {
     interface UpcomingSubscriptionCardProps
         extends Omit<UpcomingSubscription, "id"> {}
 
+    type ApplicationType = "job" | "university" | "professor";
+
+    type ApplicationStage =
+        | "saved"
+        | "applied"
+        | "interview"
+        | "offer"
+        | "rejected"
+        | "sent"
+        | "replied";
+
+    // What the app sends when creating or editing an application
+    interface ApplicationInput {
+        type: ApplicationType;
+        title: string;
+        organization?: string;
+        link?: string;
+        stage: ApplicationStage;
+        deadline: Date | null;
+        notes?: string;
+        contactEmail?: string;
+        sentAt?: Date | null;
+        followUpAt?: Date | null;
+    }
+
+    // An application as read back from Firestore
+    interface Application extends Required<ApplicationInput> {
+        id: string;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+    }
+
     interface ListHeadingProps {
         title: string;
     }

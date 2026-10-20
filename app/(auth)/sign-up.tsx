@@ -1,53 +1,47 @@
 import { useState } from 'react'
 import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
 import { Link, useRouter } from 'expo-router'
-import { useSignUp } from '@clerk/expo'
 import { styled } from 'nativewind'
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context'
 import clsx from 'clsx'
-
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
+import { saveUserProfile } from "@/lib/database";
 const SafeAreaView = styled(RNSafeAreaView)
 
+const MIN_PASSWORD_LENGTH = 6
+
 const SignUp = () => {
-  const { signUp, errors, fetchStatus } = useSignUp()
   const router = useRouter()
 
   const [emailAddress, setEmailAddress] = useState('')
   const [password, setPassword] = useState('')
-  const [code, setCode] = useState('')
-  const [needsCode, setNeedsCode] = useState(false)
-
-  const isFetching = fetchStatus === 'fetching'
+  const [emailError, setEmailError] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSignUp = async () => {
-    const { error } = await signUp.password({ emailAddress: emailAddress.trim(), password })
-    if (error) return
+    const email = emailAddress.trim()
+    const isEmailValid = email.includes('@')
+    const isPasswordValid = password.length >= MIN_PASSWORD_LENGTH
+    setEmailError(isEmailValid ? '' : 'Enter a valid email address')
+    setPasswordError(isPasswordValid ? '' : `Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
+    if (!isEmailValid || !isPasswordValid) return
 
-    const { error: sendError } = await signUp.verifications.sendEmailCode()
-    if (!sendError) setNeedsCode(true)
-  }
-
-  const handleVerify = async () => {
-    const { error } = await signUp.verifications.verifyEmailCode({ code: code.trim() })
-    if (error) return
-
-    if (signUp.status === 'complete') {
-      await signUp.finalize({
-        navigate: ({ session }) => {
-          if (session?.currentTask) return
-          router.replace('/')
-        },
-      })
+    setIsSubmitting(true)
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, email, password)
+      await saveUserProfile(user)
+      router.replace('/')
+    } catch (error) {
+      const { field, message } = getAuthErrorMessage(error)
+      if (field === 'email') setEmailError(message)
+      else setPasswordError(message)
+    } finally {
+      setIsSubmitting(false)
     }
   }
-
-  const handleStartOver = async () => {
-    await signUp.reset()
-    setNeedsCode(false)
-    setCode('')
-  }
-
-  const globalError = errors.global?.[0]?.message
 
   return (
     <SafeAreaView className="auth-safe-area">
@@ -63,81 +57,45 @@ const SignUp = () => {
                 <Text className="auth-wordmark-sub">Track every renewal</Text>
               </View>
             </View>
-            <Text className="auth-title">{needsCode ? 'Verify your email' : 'Create your account'}</Text>
-            <Text className="auth-subtitle">
-              {needsCode
-                ? `We sent a verification code to ${emailAddress.trim()}`
-                : 'Start tracking your subscriptions in one place'}
-            </Text>
+            <Text className="auth-title">Create your account</Text>
+            <Text className="auth-subtitle">Start tracking your subscriptions in one place</Text>
           </View>
 
           <View className="auth-card">
-            {needsCode ? (
-              <View className="auth-form">
-                <View className="auth-field">
-                  <Text className="auth-label">Verification code</Text>
-                  <TextInput
-                    className={clsx('auth-input', errors.fields.code && 'auth-input-error')}
-                    value={code}
-                    onChangeText={setCode}
-                    placeholder="Enter the 6-digit code"
-                    keyboardType="number-pad"
-                    autoComplete="one-time-code"
-                  />
-                  {errors.fields.code && <Text className="auth-error">{errors.fields.code.message}</Text>}
-                </View>
-                {globalError ? <Text className="auth-error">{globalError}</Text> : null}
-                <Pressable
-                  className={clsx('auth-button', (isFetching || !code) && 'auth-button-disabled')}
-                  disabled={isFetching || !code}
-                  onPress={handleVerify}
-                >
-                  <Text className="auth-button-text">{isFetching ? 'Verifying…' : 'Verify'}</Text>
-                </Pressable>
-                <Pressable className="auth-secondary-button" disabled={isFetching} onPress={() => signUp.verifications.sendEmailCode()}>
-                  <Text className="auth-secondary-button-text">Send a new code</Text>
-                </Pressable>
-                <Pressable className="auth-secondary-button" onPress={handleStartOver}>
-                  <Text className="auth-secondary-button-text">Start over</Text>
-                </Pressable>
+            <View className="auth-form">
+              <View className="auth-field">
+                <Text className="auth-label">Email</Text>
+                <TextInput
+                  className={clsx('auth-input', emailError && 'auth-input-error')}
+                  value={emailAddress}
+                  onChangeText={setEmailAddress}
+                  placeholder="you@example.com"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                />
+                {emailError ? <Text className="auth-error">{emailError}</Text> : null}
               </View>
-            ) : (
-              <View className="auth-form">
-                <View className="auth-field">
-                  <Text className="auth-label">Email</Text>
-                  <TextInput
-                    className={clsx('auth-input', errors.fields.emailAddress && 'auth-input-error')}
-                    value={emailAddress}
-                    onChangeText={setEmailAddress}
-                    placeholder="you@example.com"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    keyboardType="email-address"
-                  />
-                  {errors.fields.emailAddress && <Text className="auth-error">{errors.fields.emailAddress.message}</Text>}
-                </View>
-                <View className="auth-field">
-                  <Text className="auth-label">Password</Text>
-                  <TextInput
-                    className={clsx('auth-input', errors.fields.password && 'auth-input-error')}
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="At least 8 characters"
-                    secureTextEntry
-                    autoComplete="new-password"
-                  />
-                  {errors.fields.password && <Text className="auth-error">{errors.fields.password.message}</Text>}
-                </View>
-                {globalError ? <Text className="auth-error">{globalError}</Text> : null}
-                <Pressable
-                  className={clsx('auth-button', (isFetching || !emailAddress || !password) && 'auth-button-disabled')}
-                  disabled={isFetching || !emailAddress || !password}
-                  onPress={handleSignUp}
-                >
-                  <Text className="auth-button-text">{isFetching ? 'Creating account…' : 'Create account'}</Text>
-                </Pressable>
+              <View className="auth-field">
+                <Text className="auth-label">Password</Text>
+                <TextInput
+                  className={clsx('auth-input', passwordError && 'auth-input-error')}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+                  secureTextEntry
+                  autoComplete="new-password"
+                />
+                {passwordError ? <Text className="auth-error">{passwordError}</Text> : null}
               </View>
-            )}
+              <Pressable
+                className={clsx('auth-button', (isSubmitting || !emailAddress || !password) && 'auth-button-disabled')}
+                disabled={isSubmitting || !emailAddress || !password}
+                onPress={handleSignUp}
+              >
+                <Text className="auth-button-text">{isSubmitting ? 'Creating account…' : 'Create account'}</Text>
+              </Pressable>
+            </View>
           </View>
 
           <View className="auth-link-row">

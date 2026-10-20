@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "applications": {
+          ".indexOn": ["deadline"],
+          "$applicationId": {
+            ".validate": "newData.hasChildren(['type', 'title', 'stage'])",
+            "type": {
+              ".validate": "newData.val() === 'job' || newData.val() === 'university' || newData.val() === 'professor'"
+            },
+            "title": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+            }
+          }
+        }
+      }
+    }
+  }
+}

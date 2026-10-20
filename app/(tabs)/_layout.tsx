@@ -1,6 +1,6 @@
 import { tabs } from '@/constants/data'
 import { Redirect, Tabs } from 'expo-router'
-import { useAuth } from '@clerk/expo'
+import { useAuth } from '@/lib/auth-context'
 import { Image, View } from 'react-native'
 import clsx from "clsx"
 
@@ -12,7 +12,7 @@ const tabBar = components.tabBar;
 
 const TabLayout = () => {
   const insets = useSafeAreaInsets();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { user, initializing } = useAuth();
   const TabIcon = ({focused, icon}: TabIconProps) => {
     return(
     <View className='tabs-icon'>
@@ -23,8 +23,8 @@ const TabLayout = () => {
     </View>)
   }
 
-  if (!isLoaded) return null;
-  if (!isSignedIn) return <Redirect href="/sign-in" />;
+  if (initializing) return null;
+  if (!user) return <Redirect href="/sign-in" />;
 
   return (
     <Tabs screenOptions = {{headerShown: false,

@@ -2,7 +2,7 @@ import { View, Text, Pressable, Linking } from 'react-native'
 import { useRouter } from 'expo-router'
 import clsx from 'clsx'
 import dayjs, { type Dayjs } from 'dayjs'
-import { APPLICATIONS } from '@/constants/data'
+import { useApplications } from '@/lib/applications-store'
 import { findApplication, formatDaysAgo, getInitials, needsFollowUp } from '@/lib/applications'
 import ApplicationCard from '@/components/ApplicationCard'
 import {
@@ -63,8 +63,9 @@ const getStatus = (professor: ProfessorApplication, now: Dayjs) => {
 
 const ProfessorDetail = ({ professor, now }: { professor: ProfessorApplication; now: Dayjs }) => {
   const router = useRouter()
+  const { applications } = useApplications()
   const status = getStatus(professor, now)
-  const linked = professor.linkedApplicationId ? findApplication(APPLICATIONS, professor.linkedApplicationId) : undefined
+  const linked = professor.linkedApplicationId ? findApplication(applications, professor.linkedApplicationId) : undefined
 
   return (
     <View>

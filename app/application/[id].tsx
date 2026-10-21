@@ -3,7 +3,7 @@ import { Redirect, useLocalSearchParams } from 'expo-router'
 import { styled } from 'nativewind'
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context'
 import dayjs from 'dayjs'
-import { APPLICATIONS } from '@/constants/data'
+import { useApplications } from '@/lib/applications-store'
 import { useAuth } from '@/lib/auth-context'
 import { findApplication } from '@/lib/applications'
 import { DetailTopBar } from '@/components/detail/DetailParts'
@@ -17,12 +17,13 @@ const SafeAreaView = styled(RNSafeAreaView)
 const ApplicationScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { user, initializing } = useAuth()
+  const { applications } = useApplications()
 
   if (initializing) return null
   if (!user) return <Redirect href="/sign-in" />
 
   const now = dayjs()
-  const application = findApplication(APPLICATIONS, id)
+  const application = findApplication(applications, id)
 
   return (
     <SafeAreaView className="flex-1 bg-background">

@@ -5,7 +5,7 @@ import clsx from 'clsx'
 import dayjs, { type Dayjs } from 'dayjs'
 import { colors } from '@/constants/theme'
 import { icons } from '@/constants/icons'
-import { APPLICATIONS } from '@/constants/data'
+import { useApplications } from '@/lib/applications-store'
 import { getLinkedProfessors } from '@/lib/applications'
 import { formatCurrency } from '@/lib/utils'
 import ApplicationCard from '@/components/ApplicationCard'
@@ -50,8 +50,9 @@ const formatFee = (fee?: Money) => {
 
 const UniversityDetail = ({ university, now }: { university: UniversityApplication; now: Dayjs }) => {
   const router = useRouter()
+  const { applications } = useApplications()
   const keyDate = getKeyDate(university, now)
-  const professors = getLinkedProfessors(APPLICATIONS, university.id)
+  const professors = getLinkedProfessors(applications, university.id)
   const readyCount = university.documents.filter((d) => d.done).length
   const subtitle = [university.organization, university.country, university.intake].filter(Boolean).join(' · ')
 

@@ -4,7 +4,8 @@ import {styled} from 'nativewind';
 import { SafeAreaView as RNSafeAreaView} from "react-native-safe-area-context";
 import dayjs from "dayjs";
 import { useRouter } from "expo-router";
-import { APPLICATIONS, USER } from "@/constants/data";
+import { USER } from "@/constants/data";
+import { useApplications } from "@/lib/applications-store";
 import { icons } from "@/constants/icons";
 import { colors } from "@/constants/theme";
 import { getAwaitingReplies, getDueSoon, getGreeting, getInitials, getWeekSummary } from "@/lib/applications";
@@ -15,10 +16,11 @@ import AwaitingReplyRow from "@/components/AwaitingReplyRow";
 const SafeAreaView = styled(RNSafeAreaView);
 
 export default function App() {
+  const { applications } = useApplications();
   const now = dayjs();
-  const summary = getWeekSummary(APPLICATIONS, now);
-  const dueSoon = getDueSoon(APPLICATIONS, now);
-  const awaitingReplies = getAwaitingReplies(APPLICATIONS);
+  const summary = getWeekSummary(applications, now);
+  const dueSoon = getDueSoon(applications, now);
+  const awaitingReplies = getAwaitingReplies(applications);
   const progress = summary.total ? summary.submitted / summary.total : 0;
   const router = useRouter();
   const openApplication = (id: string) => router.push({ pathname: "/application/[id]", params: { id } });
@@ -41,7 +43,7 @@ export default function App() {
               <Image source={icons.bell} className="size-5" tintColor={colors.primary} />
               <View className="home-icon-dot" />
             </Pressable>
-            <Pressable className="home-icon-button-primary" accessibilityRole="button" accessibilityLabel="Add application">
+            <Pressable className="home-icon-button-primary" onPress={() => router.push("/application/new")} accessibilityRole="button" accessibilityLabel="Add application">
               <Image source={icons.plus} className="size-5" tintColor={colors.background} />
             </Pressable>
           </View>

@@ -5,7 +5,7 @@ import { SafeAreaView as RNSafeAreaView} from "react-native-safe-area-context";
 import { useRouter } from 'expo-router'
 import clsx from 'clsx'
 import dayjs from 'dayjs'
-import { APPLICATIONS } from '@/constants/data'
+import { useApplications } from '@/lib/applications-store'
 import { icons } from '@/constants/icons'
 import { colors } from '@/constants/theme'
 import {
@@ -23,14 +23,15 @@ const Applications = () => {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<ApplicationFilter>('all')
   const router = useRouter()
+  const { applications } = useApplications()
 
   const now = dayjs()
-  const summary = getWeekSummary(APPLICATIONS, now)
+  const summary = getWeekSummary(applications, now)
   const countFor = (key: ApplicationFilter) =>
-    key === 'all' ? APPLICATIONS.length : APPLICATIONS.filter((a) => a.type === key).length
+    key === 'all' ? applications.length : applications.filter((a) => a.type === key).length
 
   const visible = sortApplications(
-    APPLICATIONS.filter((a) => (filter === 'all' || a.type === filter) && matchesSearch(a, query)),
+    applications.filter((a) => (filter === 'all' || a.type === filter) && matchesSearch(a, query)),
     now,
   )
 
@@ -47,7 +48,7 @@ const Applications = () => {
             {summary.total} tracked · {summary.dueThisWeek} due this week
           </Text>
         </View>
-        <Pressable className="home-icon-button-primary" accessibilityRole="button" accessibilityLabel="Add application">
+        <Pressable className="home-icon-button-primary" onPress={() => router.push("/application/new")} accessibilityRole="button" accessibilityLabel="Add application">
           <Image source={icons.plus} className="size-5" tintColor={colors.background} />
         </Pressable>
       </View>

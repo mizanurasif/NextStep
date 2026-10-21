@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { AuthProvider } from '@/lib/auth-context'
+import { ApplicationsProvider } from '@/lib/applications-store'
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,7 +34,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <Stack screenOptions={{headerShown: false}} />
+      <ApplicationsProvider>
+        <Stack screenOptions={{headerShown: false}} />
+      </ApplicationsProvider>
     </AuthProvider>
   );
 }

@@ -558,6 +558,42 @@
         @apply text-sm font-sans-extrabold text-background;
     }
 
+    .type-option {
+        @apply h-16 flex-1 items-center justify-center gap-1 rounded-2xl border-2 border-black/15;
+    }
+
+    .type-option-active {
+        @apply border-primary;
+    }
+
+    .type-option-text {
+        @apply text-sm font-sans-extrabold text-primary;
+    }
+
+    .date-field {
+        @apply h-13 justify-center rounded-2xl border border-border bg-card px-4;
+    }
+
+    .date-field-ios {
+        @apply flex-row items-start;
+    }
+
+    .date-field-text {
+        @apply text-base font-sans-semibold text-primary;
+    }
+
+    .toggle-row {
+        @apply flex-row items-center justify-between;
+    }
+
+    .toggle-label {
+        @apply flex-1 text-sm font-sans-bold text-primary;
+    }
+
+    .form-footer {
+        @apply border-t border-border px-5 pb-4 pt-3;
+    }
+
     .home-header {
         @apply mb-2.5 flex-row items-center justify-between;
     }

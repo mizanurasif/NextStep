@@ -14,6 +14,10 @@ export const colors = {
     university: "#e8def8",
     professor: "#b8e8d0",
     urgent: "#a8431c",
+    // Stronger versions of the type colors, for small dots and bars on the calendar
+    jobStrong: "#3b78a8",
+    universityStrong: "#7a55b8",
+    professorStrong: "#2f8a5f",
 } as const;
 
 export const spacing = {

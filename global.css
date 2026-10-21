@@ -20,6 +20,9 @@
     --color-university: #e8def8;
     --color-professor: #b8e8d0;
     --color-urgent: #a8431c;
+    --color-job-strong: #3b78a8;
+    --color-university-strong: #7a55b8;
+    --color-professor-strong: #2f8a5f;
 
     --spacing-0: 0px;
     --spacing-1: 4px;
@@ -948,5 +951,117 @@
 
     .category-chip-text-active {
         @apply text-accent;
+    }
+
+    .cal-header {
+        @apply flex-row items-center justify-between;
+    }
+
+    .cal-month {
+        @apply text-2xl font-sans-extrabold text-primary;
+    }
+
+    .cal-nav {
+        @apply flex-row gap-2;
+    }
+
+    .cal-card {
+        @apply mt-4 rounded-3xl border border-border bg-card p-3;
+    }
+
+    .cal-weekdays {
+        @apply flex-row pb-1.5;
+    }
+
+    .cal-weekday {
+        @apply flex-1 text-center text-xs font-sans-bold text-muted-foreground;
+    }
+
+    .cal-grid {
+        @apply flex-row flex-wrap;
+    }
+
+    .cal-cell {
+        @apply w-[14.2857%] p-px;
+    }
+
+    .cal-day {
+        @apply h-11.5 items-center justify-center gap-0.75 rounded-[14px];
+    }
+
+    .cal-day-today {
+        @apply border-2 border-accent;
+    }
+
+    .cal-day-selected {
+        @apply bg-primary;
+    }
+
+    .cal-day-text {
+        @apply text-sm font-sans-semibold text-primary;
+    }
+
+    .cal-day-text-strong {
+        @apply font-sans-extrabold;
+    }
+
+    .cal-day-text-selected {
+        @apply text-background;
+    }
+
+    .cal-dots {
+        @apply h-1.5 flex-row gap-0.75;
+    }
+
+    .cal-dot {
+        @apply size-1.5 rounded-full;
+    }
+
+    .cal-legend {
+        @apply mt-3 flex-row gap-3.5;
+    }
+
+    .cal-legend-item {
+        @apply flex-row items-center gap-1.5;
+    }
+
+    .cal-legend-dot {
+        @apply size-2.5 rounded-full;
+    }
+
+    .cal-legend-text {
+        @apply text-xs font-sans-bold text-primary/80;
+    }
+
+    .cal-agenda {
+        @apply mt-4.5 gap-2.5;
+    }
+
+    .cal-agenda-title {
+        @apply text-lg font-sans-extrabold text-primary;
+    }
+
+    .cal-event {
+        @apply flex-row items-center gap-3 rounded-[18px] border border-border bg-card px-3.5 py-3;
+    }
+
+    .cal-event-bar {
+        @apply w-1.5 self-stretch rounded-full;
+    }
+
+    .cal-event-copy {
+        @apply min-w-0 flex-1;
+    }
+
+    .cal-event-title {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .cal-event-meta {
+        @apply text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .cal-event-time {
+        @apply text-sm font-sans-extrabold text-primary;
     }
 }

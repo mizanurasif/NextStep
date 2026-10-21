@@ -258,3 +258,54 @@ export const getWeekSummary = (applications: Application[], now: Dayjs) => {
         total: applications.length,
     };
 };
+
+export type CalendarEvent = {
+    id: string;
+    applicationId: string;
+    type: ApplicationType;
+    date: ISODateString;
+    title: string;
+    meta: string;
+};
+
+// Every dated thing worth seeing on the calendar: live deadlines, interviews,
+// emails sent to professors and their follow-ups
+export const getCalendarEvents = (applications: Application[]): CalendarEvent[] => {
+    const events: CalendarEvent[] = [];
+    const add = (application: Application, kind: string, date: string | null | undefined, title: string, meta: string) => {
+        if (date) events.push({ id: `${application.id}-${kind}`, applicationId: application.id, type: application.type, date, title, meta });
+    };
+    // "Machine Learning Lab · University of Alberta" → "Machine Learning Lab"
+    const shortOrg = (application: Application) => application.organization.split("·")[0].trim();
+
+    applications.forEach((a) => {
+        if (hasLiveDeadline(a)) add(a, "deadline", a.deadline, a.title, `Deadline · ${a.organization}`);
+        if (a.type === "job" && a.stage === "interview") {
+            add(a, "interview", a.interviewAt, "Interview", `${a.title} · ${a.interviewMode ?? a.organization}`);
+        }
+        if (a.type === "professor") {
+            add(a, "sent", a.sentAt, `Emailed ${a.title}`, `Professor · ${shortOrg(a)}`);
+            if (a.stage === "sent" || a.stage === "follow_up_due") {
+                add(a, "follow-up", a.followUpAt, `Follow up: ${a.title}`, `Professor · ${shortOrg(a)}`);
+            }
+        }
+    });
+
+    return events.sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf());
+};
+
+// Groups events by day, keyed "YYYY-MM-DD"
+export const groupEventsByDay = (events: CalendarEvent[]) =>
+    events.reduce<Record<string, CalendarEvent[]>>((groups, event) => {
+        const key = dayjs(event.date).format("YYYY-MM-DD");
+        (groups[key] ??= []).push(event);
+        return groups;
+    }, {});
+
+// The days to draw for a month, Sunday first, with nulls padding the first week
+export const getMonthGrid = (month: Dayjs) => {
+    const start = month.startOf("month");
+    const blanks: (Dayjs | null)[] = Array.from({ length: start.day() }, () => null);
+    const days = Array.from({ length: start.daysInMonth() }, (_, i) => start.add(i, "day"));
+    return [...blanks, ...days];
+};

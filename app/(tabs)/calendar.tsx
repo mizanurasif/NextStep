@@ -67,6 +67,8 @@ const Calendar = () => {
               const isSelected = day.isSame(selected, 'day')
               const isToday = day.isSame(today, 'day')
               const events = eventsByDay[day.format('YYYY-MM-DD')] ?? []
+              // One dot per type on this day, so three jobs don't hide a university deadline
+              const dotTypes = [...new Set(events.map((event) => event.type))]
               return (
                 <View key={day.date()} className="cal-cell">
                   <Pressable
@@ -80,8 +82,8 @@ const Calendar = () => {
                       {day.date()}
                     </Text>
                     <View className="cal-dots">
-                      {events.slice(0, 3).map((event) => (
-                        <View key={event.id} className="cal-dot" style={{ backgroundColor: TYPE_COLORS[event.type] }} />
+                      {dotTypes.map((type) => (
+                        <View key={type} className="cal-dot" style={{ backgroundColor: TYPE_COLORS[type] }} />
                       ))}
                     </View>
                   </Pressable>

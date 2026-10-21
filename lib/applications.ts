@@ -35,6 +35,12 @@ export const STAGE_TONE_CLASSES: Record<StageTone, { pill: string; text: string 
     positive: { pill: "bg-professor", text: "text-primary" },
 };
 
+// Reminders a new deadline starts with, in minutes before it (3 days and 1 day)
+export const DEFAULT_REMINDERS = [4320, 1440];
+
+// How long to wait for a professor's reply before following up
+export const FOLLOW_UP_DAYS = 7;
+
 export type ApplicationFilter = "all" | ApplicationType;
 
 export const APPLICATION_FILTERS: { key: ApplicationFilter; label: string; chipClass: string }[] = [
@@ -308,4 +314,24 @@ export const getMonthGrid = (month: Dayjs) => {
     const blanks: (Dayjs | null)[] = Array.from({ length: start.day() }, () => null);
     const days = Array.from({ length: start.daysInMonth() }, (_, i) => start.add(i, "day"));
     return [...blanks, ...days];
+};
+
+// Numbers for the profile tiles
+export const getProfileStats = (applications: Application[]) => {
+    const jobs = applications.filter((a): a is JobApplication => a.type === "job");
+    const emailed = applications.filter((a): a is ProfessorApplication => a.type === "professor" && a.stage !== "draft");
+
+    return {
+        jobsApplied: jobs.filter((a) => a.stage !== "saved").length,
+        interviews: jobs.filter((a) => !!a.interviewAt).length,
+        professorsReplied: emailed.filter((a) => a.stage === "replied").length,
+        professorsEmailed: emailed.length,
+    };
+};
+
+// Short form for a pill: 4320 → "3d", 120 → "2h", 0 → "On day"
+export const formatReminderShort = (minutesBefore: number) => {
+    if (minutesBefore === 0) return "On day";
+    if (minutesBefore % 1440 === 0) return `${minutesBefore / 1440}d`;
+    return `${Math.round(minutesBefore / 60)}h`;
 };

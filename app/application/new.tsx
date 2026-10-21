@@ -8,7 +8,7 @@ import dayjs from 'dayjs'
 import { colors } from '@/constants/theme'
 import { useAuth } from '@/lib/auth-context'
 import { useApplications } from '@/lib/applications-store'
-import { STAGE_META, TYPE_META, formatReminder } from '@/lib/applications'
+import { DEFAULT_REMINDERS, FOLLOW_UP_DAYS, STAGE_META, TYPE_META, formatReminder } from '@/lib/applications'
 import DateTimeField from '@/components/DateTimeField'
 
 const SafeAreaView = styled(RNSafeAreaView)
@@ -30,7 +30,6 @@ const COPY: Record<ApplicationType, { title: string; titlePlaceholder: string; o
 }
 
 const REMINDER_OPTIONS = [4320, 1440, 120, 0]
-const FOLLOW_UP_DAYS = 7
 
 // Adds https:// when someone types "example.com/jobs"
 const normalizeLink = (link: string) => {
@@ -61,7 +60,7 @@ const NewApplication = () => {
   const [link, setLink] = useState('')
   const [hasDeadline, setHasDeadline] = useState(true)
   const [deadline, setDeadline] = useState(defaultDeadline)
-  const [reminders, setReminders] = useState<number[]>([4320, 1440])
+  const [reminders, setReminders] = useState<number[]>(DEFAULT_REMINDERS)
   const [location, setLocation] = useState('')
   const [country, setCountry] = useState('')
   const [intake, setIntake] = useState('')

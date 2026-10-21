@@ -1064,4 +1064,80 @@
     .cal-event-time {
         @apply text-sm font-sans-extrabold text-primary;
     }
+
+    .profile-hero {
+        @apply mt-4.5 items-center gap-1;
+    }
+
+    .profile-avatar {
+        @apply size-26 items-center justify-center overflow-hidden rounded-full border-3 border-accent bg-university;
+    }
+
+    .profile-avatar-text {
+        @apply text-[34px] font-sans-extrabold text-primary;
+    }
+
+    .profile-name {
+        @apply mt-2 text-[22px] font-sans-extrabold text-primary;
+    }
+
+    .profile-email {
+        @apply text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .profile-stats {
+        @apply mt-5 flex-row gap-2.5;
+    }
+
+    .profile-stat {
+        @apply flex-1 gap-0.5 rounded-[20px] px-3 py-3.5;
+    }
+
+    .profile-stat-value {
+        @apply text-2xl font-sans-extrabold text-primary;
+    }
+
+    .profile-stat-label {
+        @apply text-xs font-sans-bold text-primary;
+    }
+
+    .settings-card {
+        @apply mt-5 overflow-hidden rounded-3xl border border-border bg-card;
+    }
+
+    .settings-row {
+        @apply min-h-15 flex-row items-center gap-3 px-4 py-2.5;
+    }
+
+    .settings-row-divider {
+        @apply border-b border-black/10;
+    }
+
+    .settings-copy {
+        @apply flex-1;
+    }
+
+    .settings-title {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .settings-detail {
+        @apply text-xs font-sans-semibold text-muted-foreground;
+    }
+
+    .settings-pill {
+        @apply rounded-full bg-muted px-2.5 py-1;
+    }
+
+    .settings-pill-text {
+        @apply text-xs font-sans-bold text-primary;
+    }
+
+    .sign-out-button {
+        @apply mt-4 h-13 items-center justify-center rounded-[18px] border-[1.5px] border-primary;
+    }
+
+    .sign-out-text {
+        @apply text-base font-sans-extrabold text-primary;
+    }
 }

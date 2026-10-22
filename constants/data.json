@@ -1,0 +1,296 @@
+{
+  "user": {
+    "uid": "demo-user",
+    "name": "Mizanur Asif",
+    "email": "mizanur@example.com",
+    "photoURL": null,
+    "createdAt": "2026-09-01T10:00:00+06:00"
+  },
+  "applications": [
+    {
+      "id": "job-technova-frontend",
+      "type": "job",
+      "title": "Frontend Developer",
+      "organization": "TechNova Ltd",
+      "link": "https://example.com/careers/technova-frontend",
+      "deadline": "2026-10-22T23:59:00+06:00",
+      "stage": "interview",
+      "location": "Dhaka",
+      "employmentType": "full-time",
+      "workMode": "hybrid",
+      "salary": "60,000–80,000 BDT / month",
+      "appliedAt": "2026-10-09T21:30:00+06:00",
+      "interviewAt": "2026-10-28T15:00:00+06:00",
+      "interviewMode": "Google Meet",
+      "notes": "Referred by Rafi. They asked about React Native and state management, bring portfolio.",
+      "reminders": [
+        { "id": "r1", "minutesBefore": 4320, "enabled": true },
+        { "id": "r2", "minutesBefore": 1440, "enabled": true },
+        { "id": "r3", "minutesBefore": 120, "enabled": false }
+      ],
+      "timeline": [
+        { "id": "t1", "date": "2026-10-05T11:00:00+06:00", "title": "Saved circular" },
+        { "id": "t2", "date": "2026-10-09T21:30:00+06:00", "title": "Applied", "detail": "Submitted CV and portfolio link" },
+        { "id": "t3", "date": "2026-10-18T10:15:00+06:00", "title": "Interview invitation", "detail": "Technical round on Oct 28" }
+      ],
+      "createdAt": "2026-10-05T11:00:00+06:00",
+      "updatedAt": "2026-10-18T10:15:00+06:00"
+    },
+    {
+      "id": "job-northwind-analyst",
+      "type": "job",
+      "title": "Junior Data Analyst",
+      "organization": "Northwind Bank",
+      "link": "https://example.com/jobs/northwind-junior-analyst",
+      "deadline": "2026-11-01T17:00:00+06:00",
+      "stage": "applied",
+      "location": "Remote",
+      "employmentType": "full-time",
+      "workMode": "remote",
+      "salary": "Negotiable",
+      "appliedAt": "2026-10-12T20:00:00+06:00",
+      "interviewAt": null,
+      "notes": "Asked for SQL and Excel samples.",
+      "reminders": [
+        { "id": "r1", "minutesBefore": 4320, "enabled": true },
+        { "id": "r2", "minutesBefore": 1440, "enabled": true }
+      ],
+      "timeline": [
+        { "id": "t1", "date": "2026-10-12T20:00:00+06:00", "title": "Applied", "detail": "Via company portal" }
+      ],
+      "createdAt": "2026-10-11T09:00:00+06:00",
+      "updatedAt": "2026-10-12T20:00:00+06:00"
+    },
+    {
+      "id": "job-brightlane-intern",
+      "type": "job",
+      "title": "React Native Intern",
+      "organization": "Brightlane Studio",
+      "link": "https://example.com/brightlane/internship",
+      "deadline": "2026-11-09T23:59:00+06:00",
+      "stage": "saved",
+      "location": "Chattogram",
+      "employmentType": "internship",
+      "workMode": "onsite",
+      "salary": "15,000 BDT / month",
+      "appliedAt": null,
+      "interviewAt": null,
+      "reminders": [
+        { "id": "r1", "minutesBefore": 4320, "enabled": true },
+        { "id": "r2", "minutesBefore": 1440, "enabled": true }
+      ],
+      "timeline": [
+        { "id": "t1", "date": "2026-10-19T13:40:00+06:00", "title": "Saved circular" }
+      ],
+      "createdAt": "2026-10-19T13:40:00+06:00",
+      "updatedAt": "2026-10-19T13:40:00+06:00"
+    },
+    {
+      "id": "job-greenfield-mobile",
+      "type": "job",
+      "title": "Mobile App Developer",
+      "organization": "Greenfield Software",
+      "link": "https://example.com/greenfield/mobile-dev",
+      "deadline": "2026-10-10T23:59:00+06:00",
+      "stage": "rejected",
+      "location": "Dhaka",
+      "employmentType": "full-time",
+      "workMode": "onsite",
+      "appliedAt": "2026-10-02T18:00:00+06:00",
+      "interviewAt": "2026-10-14T11:00:00+06:00",
+      "interviewMode": "In person",
+      "notes": "Feedback: needs more experience with native modules.",
+      "reminders": [],
+      "timeline": [
+        { "id": "t1", "date": "2026-10-02T18:00:00+06:00", "title": "Applied" },
+        { "id": "t2", "date": "2026-10-14T11:00:00+06:00", "title": "Interview" },
+        { "id": "t3", "date": "2026-10-17T16:20:00+06:00", "title": "Rejected", "detail": "Polite rejection email with feedback" }
+      ],
+      "createdAt": "2026-10-01T22:00:00+06:00",
+      "updatedAt": "2026-10-17T16:20:00+06:00"
+    },
+    {
+      "id": "job-skyline-qa",
+      "type": "job",
+      "title": "QA Engineer",
+      "organization": "Skyline Telecom",
+      "link": "https://example.com/skyline/qa-engineer",
+      "deadline": "2026-10-30T23:59:00+06:00",
+      "stage": "offer",
+      "location": "Dhaka",
+      "employmentType": "contract",
+      "workMode": "hybrid",
+      "salary": "55,000 BDT / month",
+      "appliedAt": "2026-09-28T10:00:00+06:00",
+      "interviewAt": "2026-10-16T14:00:00+06:00",
+      "interviewMode": "Zoom",
+      "notes": "Offer valid until Oct 30. Compare with TechNova before accepting.",
+      "reminders": [
+        { "id": "r1", "minutesBefore": 1440, "enabled": true }
+      ],
+      "timeline": [
+        { "id": "t1", "date": "2026-09-28T10:00:00+06:00", "title": "Applied" },
+        { "id": "t2", "date": "2026-10-16T14:00:00+06:00", "title": "Interview" },
+        { "id": "t3", "date": "2026-10-20T12:00:00+06:00", "title": "Offer received", "detail": "Reply by Oct 30" }
+      ],
+      "createdAt": "2026-09-27T21:00:00+06:00",
+      "updatedAt": "2026-10-20T12:00:00+06:00"
+    },
+    {
+      "id": "uni-alberta-mscs",
+      "type": "university",
+      "title": "MSc Computer Science",
+      "organization": "University of Alberta",
+      "link": "https://example.com/ualberta/msc-cs",
+      "deadline": "2026-12-15T23:59:00-07:00",
+      "stage": "preparing",
+      "country": "Canada",
+      "intake": "Fall 2027",
+      "submittedAt": null,
+      "applicationFee": { "amount": 125, "currency": "CAD" },
+      "documents": [
+        { "name": "Statement of purpose", "done": false },
+        { "name": "Transcripts", "done": true },
+        { "name": "IELTS score", "done": true },
+        { "name": "Recommendation letter 1", "done": true },
+        { "name": "Recommendation letter 2", "done": false }
+      ],
+      "notes": "Mention Dr. Lin's ML lab in the SOP if she replies.",
+      "reminders": [
+        { "id": "r1", "minutesBefore": 20160, "enabled": true },
+        { "id": "r2", "minutesBefore": 4320, "enabled": true }
+      ],
+      "timeline": [
+        { "id": "t1", "date": "2026-09-15T19:00:00+06:00", "title": "Started application" },
+        { "id": "t2", "date": "2026-10-03T12:00:00+06:00", "title": "Recommender 1 submitted letter" }
+      ],
+      "createdAt": "2026-09-15T19:00:00+06:00",
+      "updatedAt": "2026-10-03T12:00:00+06:00"
+    },
+    {
+      "id": "uni-tum-informatics",
+      "type": "university",
+      "title": "MSc Informatics",
+      "organization": "Technical University of Munich",
+      "link": "https://example.com/tum/msc-informatics",
+      "deadline": "2026-10-25T23:59:00+02:00",
+      "stage": "preparing",
+      "country": "Germany",
+      "intake": "Summer 2027",
+      "submittedAt": null,
+      "applicationFee": { "amount": 0, "currency": "EUR" },
+      "documents": [
+        { "name": "Statement of purpose", "done": true },
+        { "name": "Transcripts", "done": true },
+        { "name": "CV", "done": true },
+        { "name": "GRE score", "done": false }
+      ],
+      "reminders": [
+        { "id": "r1", "minutesBefore": 4320, "enabled": true },
+        { "id": "r2", "minutesBefore": 1440, "enabled": true }
+      ],
+      "timeline": [
+        { "id": "t1", "date": "2026-10-01T20:00:00+06:00", "title": "Started application" }
+      ],
+      "createdAt": "2026-10-01T20:00:00+06:00",
+      "updatedAt": "2026-10-14T09:30:00+06:00"
+    },
+    {
+      "id": "uni-toronto-meng",
+      "type": "university",
+      "title": "MEng Electrical & Computer Engineering",
+      "organization": "University of Toronto",
+      "link": "https://example.com/utoronto/meng-ece",
+      "deadline": "2026-09-30T23:59:00-04:00",
+      "stage": "under_review",
+      "country": "Canada",
+      "intake": "Winter 2027",
+      "submittedAt": "2026-09-28T22:00:00+06:00",
+      "applicationFee": { "amount": 125, "currency": "CAD" },
+      "documents": [
+        { "name": "Statement of purpose", "done": true },
+        { "name": "Transcripts", "done": true },
+        { "name": "IELTS score", "done": true }
+      ],
+      "reminders": [],
+      "timeline": [
+        { "id": "t1", "date": "2026-09-28T22:00:00+06:00", "title": "Submitted" },
+        { "id": "t2", "date": "2026-10-06T08:00:00+06:00", "title": "Application under review" }
+      ],
+      "createdAt": "2026-09-10T18:00:00+06:00",
+      "updatedAt": "2026-10-06T08:00:00+06:00"
+    },
+    {
+      "id": "prof-sarah-lin",
+      "type": "professor",
+      "title": "Dr. Sarah Lin",
+      "organization": "Machine Learning Lab · University of Alberta",
+      "link": "https://example.com/ualberta/people/sarah-lin",
+      "contactEmail": "s.lin@example.edu",
+      "researchArea": "Machine learning, NLP",
+      "emailSubject": "Prospective MSc student – interest in your ML lab",
+      "deadline": null,
+      "stage": "follow_up_due",
+      "sentAt": "2026-10-08T10:12:00+06:00",
+      "followUpAt": "2026-10-20T10:00:00+06:00",
+      "repliedAt": null,
+      "linkedApplicationId": "uni-alberta-mscs",
+      "notes": "Keep the follow-up short. Mention the new NLP project.",
+      "reminders": [
+        { "id": "r1", "minutesBefore": 0, "enabled": true }
+      ],
+      "timeline": [
+        { "id": "t1", "date": "2026-10-08T10:12:00+06:00", "title": "First email sent", "detail": "Attached CV and transcript" },
+        { "id": "t2", "date": "2026-10-15T10:00:00+06:00", "title": "No reply after 7 days" }
+      ],
+      "createdAt": "2026-10-08T10:12:00+06:00",
+      "updatedAt": "2026-10-15T10:00:00+06:00"
+    },
+    {
+      "id": "prof-daniel-ortiz",
+      "type": "professor",
+      "title": "Prof. Daniel Ortiz",
+      "organization": "Robotics Lab · Technical University of Munich",
+      "contactEmail": "d.ortiz@example.edu",
+      "researchArea": "Robotics, computer vision",
+      "emailSubject": "Research interest in visual SLAM",
+      "deadline": null,
+      "stage": "sent",
+      "sentAt": "2026-10-17T21:05:00+06:00",
+      "followUpAt": "2026-10-27T10:00:00+06:00",
+      "repliedAt": null,
+      "linkedApplicationId": "uni-tum-informatics",
+      "reminders": [
+        { "id": "r1", "minutesBefore": 0, "enabled": true }
+      ],
+      "timeline": [
+        { "id": "t1", "date": "2026-10-17T21:05:00+06:00", "title": "First email sent" }
+      ],
+      "createdAt": "2026-10-17T21:05:00+06:00",
+      "updatedAt": "2026-10-17T21:05:00+06:00"
+    },
+    {
+      "id": "prof-amina-rahman",
+      "type": "professor",
+      "title": "Dr. Amina Rahman",
+      "organization": "Data Systems Group · University of Toronto",
+      "contactEmail": "a.rahman@example.edu",
+      "researchArea": "Databases, distributed systems",
+      "emailSubject": "MEng applicant – question about project-based courses",
+      "deadline": null,
+      "stage": "replied",
+      "sentAt": "2026-09-20T09:30:00+06:00",
+      "followUpAt": null,
+      "repliedAt": "2026-09-24T03:10:00+06:00",
+      "linkedApplicationId": "uni-toronto-meng",
+      "notes": "Positive reply. Suggested applying and mentioning her group in the SOP.",
+      "reminders": [],
+      "timeline": [
+        { "id": "t1", "date": "2026-09-20T09:30:00+06:00", "title": "First email sent" },
+        { "id": "t2", "date": "2026-09-24T03:10:00+06:00", "title": "Replied", "detail": "Encouraged me to apply" }
+      ],
+      "createdAt": "2026-09-20T09:30:00+06:00",
+      "updatedAt": "2026-09-24T03:10:00+06:00"
+    }
+  ]
+}

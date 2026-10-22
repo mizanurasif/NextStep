@@ -16,6 +16,13 @@
     --color-success: #16a34a;
     --color-destructive: #dc2626;
     --color-subscription: #8fd1bd;
+    --color-job: #b8d4e3;
+    --color-university: #e8def8;
+    --color-professor: #b8e8d0;
+    --color-urgent: #a8431c;
+    --color-job-strong: #3b78a8;
+    --color-university-strong: #7a55b8;
+    --color-professor-strong: #2f8a5f;
 
     --spacing-0: 0px;
     --spacing-1: 4px;
@@ -60,6 +67,534 @@
 
     .tabs-glyph {
         @apply size-6;
+    }
+
+    .home-avatar-initials {
+        @apply size-14 items-center justify-center rounded-full bg-university;
+    }
+
+    .home-avatar-text {
+        @apply text-lg font-sans-extrabold text-primary;
+    }
+
+    .home-greeting {
+        @apply ml-3 text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .home-name {
+        @apply ml-3 text-2xl font-sans-extrabold text-primary;
+    }
+
+    .home-actions {
+        @apply flex-row gap-2;
+    }
+
+    .home-icon-button {
+        @apply size-11 items-center justify-center rounded-full border border-black/15;
+    }
+
+    .home-icon-button-primary {
+        @apply size-11 items-center justify-center rounded-full bg-primary;
+    }
+
+    .home-icon-dot {
+        @apply absolute right-2.5 top-2 size-2 rounded-full bg-accent;
+    }
+
+    .home-summary-card {
+        @apply mt-5 gap-3.5 rounded-tl-lg rounded-tr-4xl rounded-br-lg rounded-bl-4xl bg-accent p-6;
+    }
+
+    .home-summary-label {
+        @apply text-base font-sans-bold text-primary;
+    }
+
+    .home-summary-row {
+        @apply flex-row items-end justify-between;
+    }
+
+    .home-summary-count {
+        @apply text-4xl font-sans-extrabold text-primary;
+    }
+
+    .home-summary-caption {
+        @apply text-base font-sans-bold text-primary;
+    }
+
+    .home-summary-meta {
+        @apply text-right text-sm font-sans-semibold text-primary;
+    }
+
+    .home-progress-track {
+        @apply h-2 overflow-hidden rounded-full bg-primary/20;
+    }
+
+    .home-progress-fill {
+        @apply h-2 rounded-full bg-primary;
+    }
+
+    .home-progress-text {
+        @apply text-xs font-sans-semibold text-primary;
+    }
+
+    .home-section-meta {
+        @apply text-sm font-sans-bold text-muted-foreground;
+    }
+
+    .type-chip {
+        @apply rounded-full px-2.5 py-1;
+    }
+
+    .type-chip-text {
+        @apply text-xs font-sans-bold text-primary;
+    }
+
+    .due-card {
+        @apply mr-3 w-44 gap-2.5 rounded-2xl border border-border bg-card p-3.5;
+    }
+
+    .due-card-top {
+        @apply flex-row items-center justify-between;
+    }
+
+    .due-card-left {
+        @apply text-xs font-sans-bold text-urgent;
+    }
+
+    .due-card-title {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .due-card-org {
+        @apply text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .reply-row {
+        @apply flex-row items-center gap-3 rounded-2xl border border-border p-3;
+    }
+
+    .reply-icon {
+        @apply size-11 items-center justify-center rounded-xl;
+    }
+
+    .reply-copy {
+        @apply min-w-0 flex-1;
+    }
+
+    .reply-name {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .reply-meta {
+        @apply text-xs font-sans-semibold text-muted-foreground;
+    }
+
+    .reply-pill {
+        @apply rounded-full bg-muted px-2.5 py-1.5;
+    }
+
+    .reply-pill-urgent {
+        @apply bg-accent;
+    }
+
+    .reply-pill-text {
+        @apply text-xs font-sans-bold text-primary;
+    }
+
+    .apps-header {
+        @apply flex-row items-center justify-between;
+    }
+
+    .apps-title {
+        @apply text-3xl font-sans-extrabold text-primary;
+    }
+
+    .apps-subtitle {
+        @apply text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .search-box {
+        @apply mt-4 h-13 flex-row items-center gap-2.5 rounded-2xl border border-border bg-card px-4;
+    }
+
+    .search-input {
+        @apply flex-1 text-base font-sans-medium text-primary;
+    }
+
+    .filter-row {
+        @apply mt-3.5 flex-row gap-2;
+    }
+
+    .filter-chip {
+        @apply h-10 justify-center rounded-full border border-black/15 px-3.5;
+    }
+
+    .filter-chip-active {
+        @apply border-primary bg-primary;
+    }
+
+    .filter-chip-text {
+        @apply text-sm font-sans-bold text-primary;
+    }
+
+    .filter-chip-text-active {
+        @apply text-background;
+    }
+
+    .app-card {
+        @apply flex-row gap-3 rounded-2xl border border-border bg-card p-3.5;
+    }
+
+    .app-card-icon {
+        @apply size-12 items-center justify-center rounded-xl;
+    }
+
+    .app-card-body {
+        @apply min-w-0 flex-1 gap-0.5;
+    }
+
+    .app-card-title {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .app-card-org {
+        @apply text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .app-card-footer {
+        @apply mt-2 flex-row items-center justify-between;
+    }
+
+    .stage-pill {
+        @apply rounded-full px-2.5 py-1;
+    }
+
+    .stage-pill-text {
+        @apply text-xs font-sans-bold;
+    }
+
+    .app-card-date {
+        @apply flex-row items-center gap-1;
+    }
+
+    .app-card-date-text {
+        @apply text-xs font-sans-bold text-muted-foreground;
+    }
+
+    .app-card-date-urgent {
+        @apply text-urgent;
+    }
+
+    .detail-topbar {
+        @apply flex-row items-center justify-between;
+    }
+
+    .detail-back {
+        @apply size-11 items-center justify-center rounded-full border border-black/15;
+    }
+
+    .detail-title {
+        @apply mt-4 text-3xl font-sans-extrabold text-primary;
+    }
+
+    .detail-subtitle {
+        @apply mt-1 text-base font-sans-semibold text-muted-foreground;
+    }
+
+    .key-card {
+        @apply mt-4 flex-row items-center justify-between rounded-tl-lg rounded-tr-3xl rounded-br-lg rounded-bl-3xl bg-primary px-5 py-4;
+    }
+
+    .key-card-label {
+        @apply text-sm font-sans-semibold text-background/80;
+    }
+
+    .key-card-value {
+        @apply text-lg font-sans-extrabold text-background;
+    }
+
+    .key-card-badge {
+        @apply items-center rounded-2xl bg-accent px-3 py-2;
+    }
+
+    .key-card-badge-number {
+        @apply text-2xl font-sans-extrabold text-primary;
+    }
+
+    .key-card-badge-unit {
+        @apply text-xs font-sans-bold text-primary;
+    }
+
+    .section-title {
+        @apply mb-2.5 mt-6 text-base font-sans-extrabold text-primary;
+    }
+
+    .stepper {
+        @apply flex-row;
+    }
+
+    .step {
+        @apply flex-1 items-center gap-1.5;
+    }
+
+    .step-dot {
+        @apply size-8 items-center justify-center rounded-full border-2;
+    }
+
+    .step-dot-done {
+        @apply border-primary bg-primary;
+    }
+
+    .step-dot-current {
+        @apply border-primary bg-accent;
+    }
+
+    .step-dot-todo {
+        @apply border-black/25;
+    }
+
+    .step-dot-failed {
+        @apply border-black/25 bg-muted;
+    }
+
+    .step-dot-text {
+        @apply text-xs font-sans-extrabold text-primary;
+    }
+
+    .step-dot-text-done {
+        @apply text-background;
+    }
+
+    .step-label {
+        @apply text-xs font-sans-bold text-primary;
+    }
+
+    .step-label-todo {
+        @apply text-muted-foreground;
+    }
+
+    .detail-actions {
+        @apply mt-5 flex-row gap-2.5;
+    }
+
+    .action-primary {
+        @apply h-13 flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-accent;
+    }
+
+    .action-primary-text {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .action-secondary {
+        @apply h-13 flex-1 flex-row items-center justify-center gap-2 rounded-2xl border-2 border-primary;
+    }
+
+    .action-secondary-text {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .info-card {
+        @apply rounded-2xl border border-border bg-card px-4;
+    }
+
+    .info-row {
+        @apply flex-row items-center justify-between gap-3 py-3;
+    }
+
+    .info-row-divider {
+        @apply border-b border-border;
+    }
+
+    .info-label {
+        @apply text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .info-value {
+        @apply flex-1 text-right text-sm font-sans-bold text-primary;
+    }
+
+    .event-card {
+        @apply flex-row items-center gap-3 rounded-2xl border border-border bg-card p-3.5;
+    }
+
+    .date-tile {
+        @apply size-12 items-center justify-center rounded-xl bg-muted;
+    }
+
+    .date-tile-month {
+        @apply text-[10px] font-sans-extrabold text-urgent;
+    }
+
+    .date-tile-day {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .event-title {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .event-meta {
+        @apply text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .reminder-row {
+        @apply flex-row flex-wrap gap-2;
+    }
+
+    .reminder-chip {
+        @apply h-10 justify-center rounded-full border border-black/20 px-3.5;
+    }
+
+    .reminder-chip-on {
+        @apply border-accent bg-accent;
+    }
+
+    .reminder-chip-text {
+        @apply text-sm font-sans-bold text-primary;
+    }
+
+    .timeline-item {
+        @apply flex-row gap-3;
+    }
+
+    .timeline-rail {
+        @apply w-3.5 items-center;
+    }
+
+    .timeline-dot {
+        @apply mt-1 size-3.5 rounded-full border-2 border-primary bg-primary;
+    }
+
+    .timeline-line {
+        @apply min-h-6 w-0.5 flex-1 bg-black/20;
+    }
+
+    .timeline-body {
+        @apply flex-1 pb-4;
+    }
+
+    .timeline-date {
+        @apply text-xs font-sans-bold text-muted-foreground;
+    }
+
+    .timeline-title {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .timeline-detail {
+        @apply text-sm font-sans-medium text-primary/80;
+    }
+
+    .notes-text {
+        @apply text-sm font-sans-medium leading-5 text-primary/80;
+    }
+
+    .doc-row {
+        @apply flex-row items-center gap-3 py-2.5;
+    }
+
+    .doc-check {
+        @apply size-6 items-center justify-center rounded-md border-2 border-primary;
+    }
+
+    .doc-check-done {
+        @apply bg-primary;
+    }
+
+    .doc-check-mark {
+        @apply text-xs font-sans-extrabold text-background;
+    }
+
+    .doc-name {
+        @apply flex-1 text-sm font-sans-semibold text-primary;
+    }
+
+    .doc-name-done {
+        @apply text-muted-foreground line-through;
+    }
+
+    .prof-header {
+        @apply mt-4 flex-row items-center gap-3.5;
+    }
+
+    .prof-avatar {
+        @apply size-15 items-center justify-center rounded-full bg-professor;
+    }
+
+    .prof-avatar-text {
+        @apply text-xl font-sans-extrabold text-primary;
+    }
+
+    .prof-email {
+        @apply text-sm font-sans-bold text-urgent;
+    }
+
+    .status-card {
+        @apply mt-4 gap-3 rounded-tl-lg rounded-tr-3xl rounded-br-lg rounded-bl-3xl p-5;
+    }
+
+    .status-head {
+        @apply flex-row items-center justify-between gap-2;
+    }
+
+    .status-title {
+        @apply flex-1 text-lg font-sans-extrabold text-primary;
+    }
+
+    .status-badge {
+        @apply rounded-full bg-primary px-2.5 py-1;
+    }
+
+    .status-badge-text {
+        @apply text-xs font-sans-extrabold text-background;
+    }
+
+    .status-text {
+        @apply text-sm font-sans-semibold text-primary;
+    }
+
+    .status-action {
+        @apply h-11 flex-1 items-center justify-center rounded-2xl bg-primary;
+    }
+
+    .status-action-text {
+        @apply text-sm font-sans-extrabold text-background;
+    }
+
+    .type-option {
+        @apply h-16 flex-1 items-center justify-center gap-1 rounded-2xl border-2 border-black/15;
+    }
+
+    .type-option-active {
+        @apply border-primary;
+    }
+
+    .type-option-text {
+        @apply text-sm font-sans-extrabold text-primary;
+    }
+
+    .date-field {
+        @apply h-13 justify-center rounded-2xl border border-border bg-card px-4;
+    }
+
+    .date-field-ios {
+        @apply flex-row items-start;
+    }
+
+    .date-field-text {
+        @apply text-base font-sans-semibold text-primary;
+    }
+
+    .toggle-row {
+        @apply flex-row items-center justify-between;
+    }
+
+    .toggle-label {
+        @apply flex-1 text-sm font-sans-bold text-primary;
+    }
+
+    .form-footer {
+        @apply border-t border-border px-5 pb-4 pt-3;
     }
 
     .home-header {
@@ -416,5 +951,193 @@
 
     .category-chip-text-active {
         @apply text-accent;
+    }
+
+    .cal-header {
+        @apply flex-row items-center justify-between;
+    }
+
+    .cal-month {
+        @apply text-2xl font-sans-extrabold text-primary;
+    }
+
+    .cal-nav {
+        @apply flex-row gap-2;
+    }
+
+    .cal-card {
+        @apply mt-4 rounded-3xl border border-border bg-card p-3;
+    }
+
+    .cal-weekdays {
+        @apply flex-row pb-1.5;
+    }
+
+    .cal-weekday {
+        @apply flex-1 text-center text-xs font-sans-bold text-muted-foreground;
+    }
+
+    .cal-grid {
+        @apply flex-row flex-wrap;
+    }
+
+    .cal-cell {
+        @apply w-[14.2857%] p-px;
+    }
+
+    .cal-day {
+        @apply h-11.5 items-center justify-center gap-0.75 rounded-[14px];
+    }
+
+    .cal-day-today {
+        @apply border-2 border-accent;
+    }
+
+    .cal-day-selected {
+        @apply bg-primary;
+    }
+
+    .cal-day-text {
+        @apply text-sm font-sans-semibold text-primary;
+    }
+
+    .cal-day-text-strong {
+        @apply font-sans-extrabold;
+    }
+
+    .cal-day-text-selected {
+        @apply text-background;
+    }
+
+    .cal-dots {
+        @apply h-1.5 flex-row gap-0.75;
+    }
+
+    .cal-dot {
+        @apply size-1.5 rounded-full;
+    }
+
+    .cal-legend {
+        @apply mt-3 flex-row gap-3.5;
+    }
+
+    .cal-legend-item {
+        @apply flex-row items-center gap-1.5;
+    }
+
+    .cal-legend-dot {
+        @apply size-2.5 rounded-full;
+    }
+
+    .cal-legend-text {
+        @apply text-xs font-sans-bold text-primary/80;
+    }
+
+    .cal-agenda {
+        @apply mt-4.5 gap-2.5;
+    }
+
+    .cal-agenda-title {
+        @apply text-lg font-sans-extrabold text-primary;
+    }
+
+    .cal-event {
+        @apply flex-row items-center gap-3 rounded-[18px] border border-border bg-card px-3.5 py-3;
+    }
+
+    .cal-event-bar {
+        @apply w-1.5 self-stretch rounded-full;
+    }
+
+    .cal-event-copy {
+        @apply min-w-0 flex-1;
+    }
+
+    .cal-event-title {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .cal-event-meta {
+        @apply text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .cal-event-time {
+        @apply text-sm font-sans-extrabold text-primary;
+    }
+
+    .profile-hero {
+        @apply mt-4.5 items-center gap-1;
+    }
+
+    .profile-avatar {
+        @apply size-26 items-center justify-center overflow-hidden rounded-full border-3 border-accent bg-university;
+    }
+
+    .profile-avatar-text {
+        @apply text-[34px] font-sans-extrabold text-primary;
+    }
+
+    .profile-name {
+        @apply mt-2 text-[22px] font-sans-extrabold text-primary;
+    }
+
+    .profile-email {
+        @apply text-sm font-sans-semibold text-muted-foreground;
+    }
+
+    .profile-stats {
+        @apply mt-5 flex-row gap-2.5;
+    }
+
+    .profile-stat {
+        @apply flex-1 gap-0.5 rounded-[20px] px-3 py-3.5;
+    }
+
+    .profile-stat-value {
+        @apply text-2xl font-sans-extrabold text-primary;
+    }
+
+    .profile-stat-label {
+        @apply text-xs font-sans-bold text-primary;
+    }
+
+    .settings-card {
+        @apply mt-5 overflow-hidden rounded-3xl border border-border bg-card;
+    }
+
+    .settings-row {
+        @apply min-h-15 flex-row items-center gap-3 px-4 py-2.5;
+    }
+
+    .settings-row-divider {
+        @apply border-b border-black/10;
+    }
+
+    .settings-copy {
+        @apply flex-1;
+    }
+
+    .settings-title {
+        @apply text-base font-sans-extrabold text-primary;
+    }
+
+    .settings-detail {
+        @apply text-xs font-sans-semibold text-muted-foreground;
+    }
+
+    .settings-pill {
+        @apply rounded-full bg-muted px-2.5 py-1;
+    }
+
+    .settings-pill-text {
+        @apply text-xs font-sans-bold text-primary;
+    }
+
+    .sign-out-button {
+        @apply mt-4 h-13 items-center justify-center rounded-[18px] border-[1.5px] border-primary;
+    }
+
+    .sign-out-text {
+        @apply text-base font-sans-extrabold text-primary;
     }
 }

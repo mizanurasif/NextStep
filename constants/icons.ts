@@ -16,6 +16,15 @@ import plus from "@/assets/icons/plus.png";
 import setting from "@/assets/icons/setting.png";
 import spotify from "@/assets/icons/spotify.png";
 import wallet from "@/assets/icons/wallet.png";
+import bell from "@/assets/icons/bell.png";
+import briefcase from "@/assets/icons/briefcase.png";
+import calendar from "@/assets/icons/calendar.png";
+import clock from "@/assets/icons/clock.png";
+import link from "@/assets/icons/link.png";
+import mail from "@/assets/icons/mail.png";
+import profile from "@/assets/icons/profile.png";
+import search from "@/assets/icons/search.png";
+import university from "@/assets/icons/university.png";
 
 export const icons = {
     home,
@@ -36,6 +45,15 @@ export const icons = {
     github,
     claude,
     canva,
+    bell,
+    briefcase,
+    calendar,
+    clock,
+    link,
+    mail,
+    profile,
+    search,
+    university,
 } as const;
 
 export type IconKey = keyof typeof icons;

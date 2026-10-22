@@ -17,8 +17,10 @@ const TabLayout = () => {
     return(
     <View className='tabs-icon'>
       <View className={clsx('tabs-pill', focused && 'tabs-active')}>
+        {/* Navy icon on the orange active pill, cream icon on the navy bar */}
         <Image
-        source={icon} resizeMode='contain' className = "tabs-glyph" />
+        source={icon} resizeMode='contain' className = "tabs-glyph"
+        tintColor={focused ? colors.primary : colors.background} />
       </View>
     </View>)
   }

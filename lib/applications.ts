@@ -35,6 +35,13 @@ export const STAGE_TONE_CLASSES: Record<StageTone, { pill: string; text: string 
     positive: { pill: "bg-professor", text: "text-primary" },
 };
 
+// Every stage in the order an application moves through them
+export const STAGES_BY_TYPE: Record<ApplicationType, ApplicationStage[]> = {
+    job: ["saved", "applied", "interview", "offer", "rejected"],
+    university: ["preparing", "submitted", "under_review", "admitted", "rejected"],
+    professor: ["draft", "sent", "follow_up_due", "replied", "declined"],
+};
+
 // Reminders a new deadline starts with, in minutes before it (3 days and 1 day)
 export const DEFAULT_REMINDERS = [4320, 1440];
 

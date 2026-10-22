@@ -9,6 +9,7 @@ import {
 } from "firebase/database";
 import type { User } from "firebase/auth";
 import { db } from "@/lib/firebase";
+import { withoutUndefined } from "@/lib/utils";
 
 // Realtime Database layout (same shapes as constants/data.json):
 //   users/{uid}/profile                 → UserProfile
@@ -18,6 +19,25 @@ import { db } from "@/lib/firebase";
 const applicationsRef = (uid: string) => ref(db, `users/${uid}/applications`);
 
 const now = () => new Date().toISOString();
+
+// Realtime Database drops null values and empty arrays, so put them back to match the Application type
+const normalizeApplication = (id: string, value: Application): Application => {
+    const base = {
+        ...value,
+        id,
+        deadline: value.deadline ?? null,
+        reminders: value.reminders ?? [],
+        timeline: value.timeline ?? [],
+    };
+    switch (base.type) {
+        case "job":
+            return { ...base, appliedAt: base.appliedAt ?? null, interviewAt: base.interviewAt ?? null };
+        case "university":
+            return { ...base, submittedAt: base.submittedAt ?? null, documents: base.documents ?? [] };
+        case "professor":
+            return { ...base, sentAt: base.sentAt ?? null, followUpAt: base.followUpAt ?? null, repliedAt: base.repliedAt ?? null };
+    }
+};
 
 // Creates or refreshes the profile; safe to call on every sign-up or sign-in
 export const saveUserProfile = (user: User) =>
@@ -41,7 +61,7 @@ export const subscribeToApplications = (
             const applications: Application[] = [];
             // forEach keeps the deadline order; returning nothing continues the loop
             snapshot.forEach((child) => {
-                applications.push({ ...child.val(), id: child.key as string });
+                applications.push(normalizeApplication(child.key as string, child.val()));
             });
             onChange(applications);
         },
@@ -51,11 +71,11 @@ export const subscribeToApplications = (
 export const addApplication = async (uid: string, input: ApplicationInput) => {
     const newRef = push(applicationsRef(uid));
     const timestamp = now();
-    await update(newRef, { ...input, createdAt: timestamp, updatedAt: timestamp });
+    await update(newRef, withoutUndefined({ ...input, createdAt: timestamp, updatedAt: timestamp }));
     return newRef.key as string;
 };
 
 export const updateApplication = (uid: string, id: string, changes: Partial<ApplicationInput>) =>
-    update(ref(db, `users/${uid}/applications/${id}`), { ...changes, updatedAt: now() });
+    update(ref(db, `users/${uid}/applications/${id}`), withoutUndefined({ ...changes, updatedAt: now() }));
 
 export const deleteApplication = (uid: string, id: string) => remove(ref(db, `users/${uid}/applications/${id}`));

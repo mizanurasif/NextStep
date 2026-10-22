@@ -1,35 +1,57 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { APPLICATIONS } from "@/constants/data";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useAuth } from "@/lib/auth-context";
+import * as database from "@/lib/database";
 
 type ApplicationsState = {
     applications: Application[];
-    addApplication: (input: ApplicationInput) => Application;
+    loading: boolean;
+    error: string | null;
+    addApplication: (input: ApplicationInput) => Promise<string>;
+    updateApplication: (id: string, changes: Partial<ApplicationInput>) => Promise<void>;
+    deleteApplication: (id: string) => Promise<void>;
 };
 
 const ApplicationsContext = createContext<ApplicationsState | null>(null);
 
-// Holds every application in memory, starting from the dummy data.
-// New entries last until the app restarts; Realtime Database will replace this later.
+// Keeps the signed-in user's applications in sync with Realtime Database
 export const ApplicationsProvider = ({ children }: { children: ReactNode }) => {
-    const [applications, setApplications] = useState<Application[]>(APPLICATIONS);
+    const { user } = useAuth();
+    const uid = user?.uid;
+    // Tagged with the uid it belongs to, so a previous user's data is never shown
+    const [snapshot, setSnapshot] = useState<{ uid: string; applications: Application[]; error: string | null } | null>(null);
 
-    const addApplication = (input: ApplicationInput) => {
-        const timestamp = new Date().toISOString();
-        const application = {
-            ...input,
-            id: `${input.type}-${Date.now()}`,
-            createdAt: timestamp,
-            updatedAt: timestamp,
-        } as Application;
-        setApplications((current) => [application, ...current]);
-        return application;
+    // Start listening when a user signs in; the cleanup stops it on sign-out
+    useEffect(() => {
+        if (!uid) return;
+        return database.subscribeToApplications(
+            uid,
+            (list) => setSnapshot({ uid, applications: list, error: null }),
+            (err) => setSnapshot({ uid, applications: [], error: err.message }),
+        );
+    }, [uid]);
+
+    // Derived during render instead of reset inside the effect
+    const current = uid && snapshot?.uid === uid ? snapshot : null;
+    const applications = current?.applications ?? [];
+    const error = current?.error ?? null;
+    const loading = !!uid && !current;
+
+    const requireUid = () => {
+        if (!user) throw new Error("You must be signed in");
+        return user.uid;
     };
 
-    return (
-        <ApplicationsContext.Provider value={{ applications, addApplication }}>
-            {children}
-        </ApplicationsContext.Provider>
-    );
+    // No need to update state by hand: the listener above picks up every write
+    const value: ApplicationsState = {
+        applications,
+        loading,
+        error,
+        addApplication: (input) => database.addApplication(requireUid(), input),
+        updateApplication: (id, changes) => database.updateApplication(requireUid(), id, changes),
+        deleteApplication: (id) => database.deleteApplication(requireUid(), id),
+    };
+
+    return <ApplicationsContext.Provider value={value}>{children}</ApplicationsContext.Provider>;
 };
 
 export const useApplications = () => {

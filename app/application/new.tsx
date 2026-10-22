@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Image, Switch } from 'react-native'
+import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Image, Switch, Alert } from 'react-native'
 import { Redirect, Stack, useRouter } from 'expo-router'
 import { styled } from 'nativewind'
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context'
@@ -70,6 +70,7 @@ const NewApplication = () => {
   const [sentAt, setSentAt] = useState(() => new Date())
   const [notes, setNotes] = useState('')
   const [showErrors, setShowErrors] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   if (initializing) return null
   if (!user) return <Redirect href="/sign-in" />
@@ -92,7 +93,8 @@ const NewApplication = () => {
   const toggleReminder = (minutes: number) =>
     setReminders((current) => (current.includes(minutes) ? current.filter((m) => m !== minutes) : [...current, minutes]))
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isSaving) return
     if (!isValid) {
       setShowErrors(true)
       return
@@ -154,9 +156,16 @@ const NewApplication = () => {
       }
     }
 
-    const created = addApplication(input)
-    // Swap this form for the new item's detail screen
-    router.replace({ pathname: '/application/[id]', params: { id: created.id } })
+    setIsSaving(true)
+    try {
+      const id = await addApplication(input)
+      // Swap this form for the new item's detail screen
+      router.replace({ pathname: '/application/[id]', params: { id } })
+    } catch (error) {
+      Alert.alert('Could not save', error instanceof Error ? error.message : 'Please try again')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -364,11 +373,13 @@ const NewApplication = () => {
 
         <View className="form-footer">
           <Pressable
-            className={clsx('auth-button', !isValid && 'auth-button-disabled')}
+            className={clsx('auth-button', (!isValid || isSaving) && 'auth-button-disabled')}
             onPress={handleSave}
+            disabled={isSaving}
             accessibilityRole="button"
+            accessibilityState={{ disabled: isSaving, busy: isSaving }}
           >
-            <Text className="auth-button-text">Save application</Text>
+            <Text className="auth-button-text">{isSaving ? 'Saving…' : 'Save application'}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>

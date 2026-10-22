@@ -53,3 +53,7 @@ export const formatStatusLabel = (value?: string): string => {
   if (!value) return "Unknown";
   return value.charAt(0).toUpperCase() + value.slice(1);
 };
+
+// Realtime Database refuses undefined values, so drop those keys before writing
+export const withoutUndefined = <T extends object>(obj: T) =>
+    Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;

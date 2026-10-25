@@ -45,3 +45,6 @@ app-example
 # Clerk keys
 .env
 package-lock.json
+
+.idea/
+ DATABASE_GUIDE.md

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native'
 import { Redirect, useLocalSearchParams } from 'expo-router'
 import { styled } from 'nativewind'
@@ -20,6 +21,12 @@ const ApplicationScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { user, initializing } = useAuth()
   const { applications, loading, error } = useApplications()
+  // Re-renders every 30 seconds so the minute countdown stays current
+  const [now, setNow] = useState(() => dayjs())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(dayjs()), 30_000)
+    return () => clearInterval(timer)
+  }, [])
 
   if (initializing) return null
   if (!user) return <Redirect href="/sign-in" />
@@ -32,7 +39,6 @@ const ApplicationScreen = () => {
     )
   }
 
-  const now = dayjs()
   const application = findApplication(applications, id)
 
   return (

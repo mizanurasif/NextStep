@@ -60,9 +60,11 @@ declare global {
 
     interface Reminder {
         id: string;
-        // How long before the deadline to notify, e.g. 4320 = 3 days, 1440 = 1 day, 120 = 2 hours
+        // How long before the deadline to notify, e.g. 10080 = 1 week, 4320 = 3 days, 60 = 1 hour
         minutesBefore: number;
         enabled: boolean;
+        // "on_day" = 9 AM on the deadline's date, "custom" = a time the user picked; missing for the plain presets
+        kind?: "on_day" | "custom";
     }
 
     interface TimelineEvent {
@@ -141,7 +143,24 @@ declare global {
 
     // What the app sends when creating an application; the database adds the rest
     type ApplicationInput = DistributiveOmit<Application, "id" | "createdAt" | "updatedAt">;
+    /*
+    DistributiveOmit fixes this:
 
+        type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+        How to read it:
+        - K extends PropertyKey means K must be valid field names (string, number or symbol).
+        - T extends unknown ? Omit<T, K> : never is a conditional type. T extends unknown is always true, so it always takes the Omit<T, K> branch. The condition only exists for its side effect.
+        - That side effect: when T is a union, a conditional type is applied to each member separately. This is called distribution.
+
+        So TypeScript works it out like this:
+
+        DistributiveOmit<Job | University | Professor, "id">
+        = Omit<Job, "id"> | Omit<University, "id"> | Omit<Professor, "id">
+
+        It removes id from each type one at a time and keeps the union. Each member keeps its own fields.
+    
+    */
     interface UserProfile {
         uid: string;
         name: string;

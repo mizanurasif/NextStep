@@ -100,7 +100,7 @@ const JobDetail = ({ job, now }: { job: JobApplication; now: Dayjs }) => {
       {job.reminders.length > 0 && (
         <>
           <SectionTitle>Reminders</SectionTitle>
-          <ReminderChips reminders={job.reminders} />
+          <ReminderChips reminders={job.reminders} anchor={job.deadline} />
         </>
       )}
 

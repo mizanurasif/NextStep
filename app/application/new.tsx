@@ -8,7 +8,7 @@ import dayjs from 'dayjs'
 import { colors } from '@/constants/theme'
 import { useAuth } from '@/lib/auth-context'
 import { useApplications } from '@/lib/applications-store'
-import { DEFAULT_REMINDERS, FOLLOW_UP_DAYS, STAGE_META, TYPE_META, formatReminder } from '@/lib/applications'
+import { FOLLOW_UP_DAYS, STAGE_META, TYPE_META, getReminderPresets, isValidReminderTime } from '@/lib/applications'
 import DateTimeField from '@/components/DateTimeField'
 
 const SafeAreaView = styled(RNSafeAreaView)
@@ -29,7 +29,7 @@ const COPY: Record<ApplicationType, { title: string; titlePlaceholder: string; o
   professor: { title: 'Professor', titlePlaceholder: 'e.g. Dr. Sarah Lin', org: 'Lab · University', orgPlaceholder: 'e.g. ML Lab · University of Alberta', link: 'Profile page' },
 }
 
-const REMINDER_OPTIONS = [4320, 1440, 120, 0]
+const CUSTOM_FORMAT = 'MMM D, h:mm A'
 
 // Adds https:// when someone types "example.com/jobs"
 const normalizeLink = (link: string) => {
@@ -60,7 +60,11 @@ const NewApplication = () => {
   const [link, setLink] = useState('')
   const [hasDeadline, setHasDeadline] = useState(true)
   const [deadline, setDeadline] = useState(defaultDeadline)
-  const [reminders, setReminders] = useState<number[]>(DEFAULT_REMINDERS)
+  // Nothing is picked by default; the user chooses presets (by key) and adds custom times
+  const [presetKeys, setPresetKeys] = useState<string[]>([])
+  const [customTimes, setCustomTimes] = useState<Date[]>([])
+  // The custom time being picked, before it's added
+  const [customDraft, setCustomDraft] = useState<Date | null>(null)
   const [location, setLocation] = useState('')
   const [country, setCountry] = useState('')
   const [intake, setIntake] = useState('')
@@ -77,12 +81,22 @@ const NewApplication = () => {
 
   const copy = COPY[type]
   const isProfessor = type === 'professor'
+  const usesReminders = !isProfessor && hasDeadline
+  const now = dayjs()
+  const deadlineDay = dayjs(deadline)
+  // The choices follow the deadline: a far deadline offers 1 week / 3 days / on the day, a close one just 1 hour
+  const presets = getReminderPresets(deadline, now)
+  const isValidTime = (time: Date) => isValidReminderTime(dayjs(time), deadlineDay, now)
+  const draftError = customDraft && !isValidTime(customDraft) ? 'Pick a time at least 1 minute from now and before the deadline' : ''
+
   const errors = {
     title: title.trim() ? '' : `Enter the ${copy.title.toLowerCase()}`,
     organization: organization.trim() ? '' : `Enter the ${copy.org.split(' ')[0].toLowerCase()}`,
     contactEmail: !isProfessor || contactEmail.trim().includes('@') ? '' : 'Enter a valid email address',
+    // Custom times can fall behind if the form stays open or the deadline moves
+    reminders: usesReminders && customTimes.some((time) => !isValidTime(time)) ? 'Remove reminders that are in the past or after the deadline' : '',
   }
-  const isValid = !errors.title && !errors.organization && !errors.contactEmail
+  const isValid = !errors.title && !errors.organization && !errors.contactEmail && !errors.reminders
 
   const changeType = (next: ApplicationType) => {
     setType(next)
@@ -90,8 +104,30 @@ const NewApplication = () => {
     setShowErrors(false)
   }
 
-  const toggleReminder = (minutes: number) =>
-    setReminders((current) => (current.includes(minutes) ? current.filter((m) => m !== minutes) : [...current, minutes]))
+  const togglePreset = (key: string) =>
+    setPresetKeys((current) => (current.includes(key) ? current.filter((k) => k !== key) : [...current, key]))
+
+  // Starts the picker an hour before the deadline, or a few minutes from now when that's too close
+  const startCustom = () => {
+    const hourBefore = deadlineDay.subtract(1, 'hour').second(0).millisecond(0)
+    setCustomDraft((isValidTime(hourBefore.toDate()) ? hourBefore : now.add(5, 'minute').second(0).millisecond(0)).toDate())
+  }
+
+  const addCustom = () => {
+    if (!customDraft || draftError) return
+    setCustomTimes((current) => [...current, customDraft].sort((a, b) => a.getTime() - b.getTime()))
+    setCustomDraft(null)
+  }
+
+  // Presets that no longer fit the deadline are dropped; `kind` is only set when needed,
+  // since Firebase rejects undefined values
+  const buildReminders = (): Reminder[] =>
+    [
+      ...presets
+        .filter((preset) => presetKeys.includes(preset.key))
+        .map((preset) => (preset.kind ? { minutesBefore: preset.minutesBefore, kind: preset.kind } : { minutesBefore: preset.minutesBefore })),
+      ...customTimes.map((time) => ({ minutesBefore: deadlineDay.diff(time, 'minute'), kind: 'custom' as const })),
+    ].map((reminder, i) => ({ id: `r${i + 1}`, enabled: true, ...reminder }))
 
   const handleSave = async () => {
     if (isSaving) return
@@ -120,7 +156,7 @@ const NewApplication = () => {
         location: location.trim() || undefined,
         appliedAt: applied ? now : null,
         interviewAt: null,
-        reminders: hasDeadline ? reminders.map((m, i) => ({ id: `r${i + 1}`, minutesBefore: m, enabled: true })) : [],
+        reminders: hasDeadline ? buildReminders() : [],
         timeline: firstEvent(applied ? 'Applied' : 'Saved circular'),
       }
     } else if (type === 'university') {
@@ -134,7 +170,7 @@ const NewApplication = () => {
         intake: intake.trim() || undefined,
         submittedAt: submitted ? now : null,
         documents: [],
-        reminders: hasDeadline ? reminders.map((m, i) => ({ id: `r${i + 1}`, minutesBefore: m, enabled: true })) : [],
+        reminders: hasDeadline ? buildReminders() : [],
         timeline: firstEvent(submitted ? 'Submitted' : 'Started application'),
       }
     } else {
@@ -335,23 +371,60 @@ const NewApplication = () => {
                   <Field label="Deadline">
                     <DateTimeField label="Deadline" value={deadline} onChange={setDeadline} />
                   </Field>
-                  <Field label="Remind me">
+                  <Field label="Remind me" error={showErrors ? errors.reminders : ''}>
                     <View className="reminder-row">
-                      {REMINDER_OPTIONS.map((minutes) => {
-                        const isOn = reminders.includes(minutes)
+                      {presets.map((preset) => {
+                        const isOn = presetKeys.includes(preset.key)
                         return (
                           <Pressable
-                            key={minutes}
+                            key={preset.key}
                             className={clsx('reminder-chip', isOn && 'reminder-chip-on')}
-                            onPress={() => toggleReminder(minutes)}
+                            onPress={() => togglePreset(preset.key)}
                             accessibilityRole="checkbox"
                             accessibilityState={{ checked: isOn }}
                           >
-                            <Text className="reminder-chip-text">{formatReminder(minutes)}</Text>
+                            <Text className="reminder-chip-text">{preset.label}</Text>
                           </Pressable>
                         )
                       })}
+                      {customTimes.map((time) => (
+                        <Pressable
+                          key={time.getTime()}
+                          className="reminder-chip reminder-chip-on"
+                          onPress={() => setCustomTimes((current) => current.filter((t) => t !== time))}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove reminder at ${dayjs(time).format(CUSTOM_FORMAT)}`}
+                        >
+                          <Text className="reminder-chip-text">{dayjs(time).format(CUSTOM_FORMAT)}  ✕</Text>
+                        </Pressable>
+                      ))}
+                      {!customDraft && deadlineDay.isAfter(now.add(1, 'minute')) && (
+                        <Pressable className="reminder-chip" onPress={startCustom} accessibilityRole="button">
+                          <Text className="reminder-chip-text">+ Custom</Text>
+                        </Pressable>
+                      )}
                     </View>
+                    {customDraft && (
+                      <View className="mt-2.5 gap-2.5">
+                        <DateTimeField label="Custom reminder" value={customDraft} onChange={setCustomDraft} />
+                        {draftError ? <Text className="auth-error">{draftError}</Text> : null}
+                        <View className="flex-row gap-2">
+                          <Pressable className="reminder-chip" onPress={() => setCustomDraft(null)} accessibilityRole="button">
+                            <Text className="reminder-chip-text">Cancel</Text>
+                          </Pressable>
+                          <Pressable
+                            className={clsx('reminder-chip reminder-chip-on', draftError && 'opacity-50')}
+                            onPress={addCustom}
+                            disabled={!!draftError}
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: !!draftError }}
+                          >
+                            <Text className="reminder-chip-text">Add reminder</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    )}
+                    <Text className="auth-helper">You&apos;ll always be notified when the deadline passes.</Text>
                   </Field>
                 </>
               )}

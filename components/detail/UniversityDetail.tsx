@@ -128,7 +128,7 @@ const UniversityDetail = ({ university, now }: { university: UniversityApplicati
       {university.reminders.length > 0 && (
         <>
           <SectionTitle>Reminders</SectionTitle>
-          <ReminderChips reminders={university.reminders} />
+          <ReminderChips reminders={university.reminders} anchor={university.deadline} />
         </>
       )}
 

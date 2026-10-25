@@ -50,10 +50,10 @@ export const KeyDateCard = ({ label, value, badge }: { label: string; value: str
   </View>
 )
 
-// The badge on KeyDateCard: "5 / hours left" when under a day away, otherwise "2 / days left" or "9 / days ago"
+// The badge on KeyDateCard: "2 / days left", "5h 20m / left", "45 / min left", or the same with "ago" once passed
 export const countdownBadge = (date: string, now: Dayjs, future: string, past: string) => {
   const { value, unit, inPast } = getTimeDistance(date, now)
-  return { number: String(value), unit: `${unit} ${inPast ? past : future}` }
+  return { number: value, unit: [unit, inPast ? past : future].filter(Boolean).join(' ') }
 }
 
 export const StageStepper = ({ application }: { application: Application }) => (
@@ -107,12 +107,13 @@ export const EventCard = ({ date, title, meta }: { date: string; title: string; 
   </View>
 )
 
-export const ReminderChips = ({ reminders }: { reminders: Reminder[] }) => (
+// `anchor` is the date the reminders count back from, needed to show custom reminder times
+export const ReminderChips = ({ reminders, anchor }: { reminders: Reminder[]; anchor?: string | null }) => (
   <View className="reminder-row">
     {reminders.map((reminder) => (
       <View key={reminder.id} className={clsx('reminder-chip', reminder.enabled && 'reminder-chip-on')}>
         <Text className="reminder-chip-text">
-          {formatReminder(reminder.minutesBefore)}
+          {formatReminder(reminder, anchor)}
           {reminder.enabled ? '' : ' · off'}
         </Text>
       </View>

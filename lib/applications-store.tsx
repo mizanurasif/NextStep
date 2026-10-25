@@ -13,6 +13,9 @@ type ApplicationsState = {
 
 const ApplicationsContext = createContext<ApplicationsState | null>(null);
 
+// One shared empty list, so effects that depend on `applications` don't re-run on every render
+const NO_APPLICATIONS: Application[] = [];
+
 // Keeps the signed-in user's applications in sync with Realtime Database
 export const ApplicationsProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
@@ -32,7 +35,7 @@ export const ApplicationsProvider = ({ children }: { children: ReactNode }) => {
 
     // Derived during render instead of reset inside the effect
     const current = uid && snapshot?.uid === uid ? snapshot : null;
-    const applications = current?.applications ?? [];
+    const applications = current?.applications ?? NO_APPLICATIONS;
     const error = current?.error ?? null;
     const loading = !!uid && !current;
 

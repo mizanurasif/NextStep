@@ -42,8 +42,39 @@ export const STAGES_BY_TYPE: Record<ApplicationType, ApplicationStage[]> = {
     professor: ["draft", "sent", "follow_up_due", "replied", "declined"],
 };
 
-// Reminders a new deadline starts with, in minutes before it (3 days and 1 day)
-export const DEFAULT_REMINDERS = [4320, 1440];
+// "On the day" reminders go off at this hour on the deadline's date
+export const ON_DAY_HOUR = 9;
+
+export type ReminderPreset = { key: string; label: string; minutesBefore: number; kind?: "on_day" };
+
+// A reminder has to be at least a minute from now and before the deadline
+export const isValidReminderTime = (time: Dayjs, deadline: Dayjs, now: Dayjs) =>
+    !time.isBefore(now.add(1, "minute")) && time.isBefore(deadline);
+
+// The preset reminders that fit how far away the deadline is:
+//   over a week -> 1 week, 3 days, on the day; under a week -> 3 days, on the day;
+//   under 3 days -> on the day; under a day -> 1 hour
+export const getReminderPresets = (deadline: Date | string, now: Dayjs): ReminderPreset[] => {
+    const end = dayjs(deadline);
+    const minutesLeft = end.diff(now, "minute");
+    const week = { key: "week", label: "1 week before", minutesBefore: 10080 };
+    const threeDays = { key: "3days", label: "3 days before", minutesBefore: 4320 };
+    const onDay = {
+        key: "on_day",
+        label: `On the day · ${ON_DAY_HOUR} AM`,
+        minutesBefore: end.diff(end.startOf("day").hour(ON_DAY_HOUR), "minute"),
+        kind: "on_day" as const,
+    };
+    const hour = { key: "hour", label: "1 hour before", minutesBefore: 60 };
+
+    const presets =
+        minutesLeft >= 7 * 1440 ? [week, threeDays, onDay]
+        : minutesLeft >= 3 * 1440 ? [threeDays, onDay]
+        : minutesLeft >= 1440 ? [onDay]
+        : [hour];
+    // Drops "on the day" when the deadline is at or before 9 AM, and anything already too close
+    return presets.filter((p) => p.minutesBefore > 0 && isValidReminderTime(end.subtract(p.minutesBefore, "minute"), end, now));
+};
 
 // How long to wait for a professor's reply before following up
 export const FOLLOW_UP_DAYS = 7;
@@ -57,26 +88,26 @@ export const APPLICATION_FILTERS: { key: ApplicationFilter; label: string; chipC
     { key: "professor", label: "Prof", chipClass: "bg-professor" },
 ];
 
-// Stages where nothing is left to do, so their deadlines no longer matter
-const CLOSED_STAGES: ApplicationStage[] = ["rejected", "admitted", "declined", "replied"];
-
 // Stages that mean the application or email hasn't been sent yet
 const NOT_SUBMITTED_STAGES: ApplicationStage[] = ["saved", "preparing", "draft"];
-
-const isOpen = (application: Application) => !CLOSED_STAGES.includes(application.stage);
 
 // A deadline only matters while you still have to act: before applying or
 // submitting, or while an offer waits for your answer
 const DEADLINE_STAGES: ApplicationStage[] = ["saved", "preparing", "offer"];
 
-const hasLiveDeadline = (application: Application) =>
+export const hasLiveDeadline = (application: Application) =>
     !!application.deadline && DEADLINE_STAGES.includes(application.stage);
 
+// Morning from 6:00 AM, noon from 12:00 PM, afternoon from 4:00 PM,
+// evening from 6:30 PM, night from 7:30 PM until 6:00 AM
 export const getGreeting = (now: Dayjs) => {
-    const hour = now.hour();
-    if (hour < 12) return "Good morning,";
-    if (hour < 17) return "Good afternoon,";
-    return "Good evening,";
+    const minutes = now.hour() * 60 + now.minute();
+    if (minutes < 6 * 60) return "Good night,";
+    if (minutes < 12 * 60) return "Good morning,";
+    if (minutes < 16 * 60) return "Good noon,";
+    if (minutes < 18 * 60 + 30) return "Good afternoon,";
+    if (minutes < 19 * 60 + 30) return "Good evening,";
+    return "Good night,";
 };
 
 export const getInitials = (name: string) =>
@@ -87,26 +118,34 @@ export const getInitials = (name: string) =>
         .map((part) => part[0].toUpperCase())
         .join("");
 
-// How far a date is from now: hours when it's less than a day away, otherwise calendar days.
-// `inPast` is true once the date has passed.
+// How far a date is from now, in either direction (`inPast` is true once it has passed):
+//   a day or more -> whole days ("2" "days"), under a day -> "5h 20m", under an hour -> "45" "min"
 export const getTimeDistance = (date: string, now: Dayjs) => {
     const target = dayjs(date);
-    const hours = Math.abs(target.diff(now, "hour", true));
+    const minutes = Math.abs(target.diff(now, "minute"));
     const inPast = target.isBefore(now);
 
-    if (hours < 24) {
-        // Round up, so 20 minutes away still reads "1 hour" rather than "0 hours"
-        const value = Math.max(1, Math.ceil(hours));
-        return { value, unit: value === 1 ? "hour" : "hours", inPast };
+    if (minutes >= 1440) {
+        const days = Math.floor(minutes / 1440);
+        return { value: String(days), unit: days === 1 ? "day" : "days", inPast };
     }
-    const days = Math.abs(target.startOf("day").diff(now.startOf("day"), "day"));
-    return { value: days, unit: days === 1 ? "day" : "days", inPast };
+    if (minutes >= 60) {
+        const hours = Math.floor(minutes / 60);
+        const rest = minutes % 60;
+        return { value: rest ? `${hours}h ${rest}m` : `${hours}h`, unit: "", inPast };
+    }
+    // Never "0 min": the last minute still reads "1 min"
+    return { value: String(Math.max(1, minutes)), unit: "min", inPast };
 };
 
-export const formatDaysLeft = (deadline: string, now: Dayjs) => {
-    const { value, unit, inPast } = getTimeDistance(deadline, now);
-    return inPast ? "Deadline passed" : `${value} ${unit} left`;
+// "2 days", "5h 20m", "45 min"
+export const formatTimeDistance = (date: string, now: Dayjs) => {
+    const { value, unit } = getTimeDistance(date, now);
+    return unit ? `${value} ${unit}` : value;
 };
+
+export const formatDaysLeft = (deadline: string, now: Dayjs) =>
+    dayjs(deadline).isBefore(now) ? "Deadline passed" : `${formatTimeDistance(deadline, now)} left`;
 
 export const formatDaysAgo = (date: string, now: Dayjs) => {
     const days = now.startOf("day").diff(dayjs(date).startOf("day"), "day");
@@ -115,10 +154,14 @@ export const formatDaysAgo = (date: string, now: Dayjs) => {
     return `${days} days ago`;
 };
 
-// Applications you still need to act on before a deadline that's still ahead, soonest first
+// Applications you still need to act on before a deadline in the next 7 days, soonest first
 export const getDueSoon = (applications: Application[], now: Dayjs) =>
     applications
-        .filter((a) => hasLiveDeadline(a) && dayjs(a.deadline).isAfter(now))
+        .filter((a) => {
+            if (!hasLiveDeadline(a)) return false;
+            const deadline = dayjs(a.deadline);
+            return deadline.isAfter(now) && !deadline.isAfter(now.add(7, "day"));
+        })
         .sort((a, b) => dayjs(a.deadline).valueOf() - dayjs(b.deadline).valueOf());
 
 export type AwaitingReply = Application;
@@ -181,21 +224,27 @@ export const getCardDate = (application: Application, now: Dayjs): { label: stri
     return { label: deadline.format("MMM D"), urgent: isWithinWeek(deadline.toISOString()) };
 };
 
-// The next date that matters, used to put the most pressing items first
-const getNextDate = (application: Application, now: Dayjs) => {
-    let date: string | null | undefined = null;
-    if (application.type === "professor") date = application.followUpAt;
-    else if (application.type === "job" && application.stage === "interview") date = application.interviewAt;
-    else if (hasLiveDeadline(application)) date = application.deadline;
-    return date && dayjs(date).isAfter(now.subtract(1, "day")) ? dayjs(date).valueOf() : Infinity;
+// The date an item is sorted by: the follow-up date for a professor, the deadline for everything else
+const getSortDate = (application: Application) =>
+    application.type === "professor" ? application.followUpAt : application.deadline;
+
+// 0 = date still ahead, 1 = no date, 2 = date passed
+const getDeadlineGroup = (application: Application, now: Dayjs) => {
+    const date = getSortDate(application);
+    if (!date) return 1;
+    return dayjs(date).isAfter(now) ? 0 : 2;
 };
 
-// Open items first, soonest date first; finished ones (rejected, admitted, replied…) at the end
+// Upcoming dates first (soonest first), then items without one (latest change first),
+// then passed dates (the one that passed most recently first)
 export const sortApplications = (applications: Application[], now: Dayjs) =>
     [...applications].sort((a, b) => {
-        if (isOpen(a) !== isOpen(b)) return isOpen(a) ? -1 : 1;
-        if (!isOpen(a)) return dayjs(b.updatedAt).valueOf() - dayjs(a.updatedAt).valueOf();
-        return getNextDate(a, now) - getNextDate(b, now);
+        const groupA = getDeadlineGroup(a, now);
+        const groupB = getDeadlineGroup(b, now);
+        if (groupA !== groupB) return groupA - groupB;
+        if (groupA === 1) return dayjs(b.updatedAt).valueOf() - dayjs(a.updatedAt).valueOf();
+        // Smallest distance from now first, whether the date is ahead or behind
+        return Math.abs(dayjs(getSortDate(a)).diff(now)) - Math.abs(dayjs(getSortDate(b)).diff(now));
     });
 
 // Matches the query against the name, organization, place, research area and stage
@@ -217,8 +266,12 @@ export const findApplication = (applications: Application[], id: string) => appl
 export const getLinkedProfessors = (applications: Application[], universityId: string) =>
     applications.filter((a): a is ProfessorApplication => a.type === "professor" && a.linkedApplicationId === universityId);
 
-export const formatReminder = (minutesBefore: number) => {
+// `anchor` is the deadline (or follow-up date) the reminder counts back from
+export const formatReminder = ({ minutesBefore, kind }: Reminder, anchor?: string | null) => {
+    if (kind === "on_day") return `On the day · ${ON_DAY_HOUR} AM`;
+    if (kind === "custom" && anchor) return dayjs(anchor).subtract(minutesBefore, "minute").format("MMM D, h:mm A");
     if (minutesBefore === 0) return "On the day";
+    if (minutesBefore === 10080) return "1 week before";
     if (minutesBefore % 1440 === 0) {
         const days = minutesBefore / 1440;
         return days === 1 ? "1 day before" : `${days} days before`;
@@ -334,11 +387,4 @@ export const getProfileStats = (applications: Application[]) => {
         professorsReplied: emailed.filter((a) => a.stage === "replied").length,
         professorsEmailed: emailed.length,
     };
-};
-
-// Short form for a pill: 4320 → "3d", 120 → "2h", 0 → "On day"
-export const formatReminderShort = (minutesBefore: number) => {
-    if (minutesBefore === 0) return "On day";
-    if (minutesBefore % 1440 === 0) return `${minutesBefore / 1440}d`;
-    return `${Math.round(minutesBefore / 60)}h`;
 };

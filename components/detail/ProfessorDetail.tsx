@@ -136,7 +136,7 @@ const ProfessorDetail = ({ professor, now }: { professor: ProfessorApplication; 
       {professor.reminders.length > 0 && professor.stage !== 'replied' && (
         <>
           <SectionTitle>Follow-up reminder</SectionTitle>
-          <ReminderChips reminders={professor.reminders} />
+          <ReminderChips reminders={professor.reminders} anchor={professor.followUpAt} />
         </>
       )}
 

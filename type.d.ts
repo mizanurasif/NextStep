@@ -65,6 +65,10 @@ declare global {
         enabled: boolean;
         // "on_day" = 9 AM on the deadline's date, "custom" = a time the user picked; missing for the plain presets
         kind?: "on_day" | "custom";
+        // The exact time of a custom reminder; lets it work when there's no deadline to count back from
+        at?: ISODateString;
+        // true = notification plus a loud alarm sound; missing or false = a normal notification
+        alarm?: boolean;
     }
 
     interface TimelineEvent {

@@ -8,6 +8,8 @@ type ApplicationsState = {
     error: string | null;
     addApplication: (input: ApplicationInput) => Promise<string>;
     updateApplication: (id: string, changes: Partial<ApplicationInput>) => Promise<void>;
+    // Like updateApplication, but fields left undefined are cleared instead of kept
+    editApplication: (id: string, changes: Partial<ApplicationInput>) => Promise<void>;
     deleteApplication: (id: string) => Promise<void>;
 };
 
@@ -51,6 +53,7 @@ export const ApplicationsProvider = ({ children }: { children: ReactNode }) => {
         error,
         addApplication: (input) => database.addApplication(requireUid(), input),
         updateApplication: (id, changes) => database.updateApplication(requireUid(), id, changes),
+        editApplication: (id, changes) => database.editApplication(requireUid(), id, changes),
         deleteApplication: (id) => database.deleteApplication(requireUid(), id),
     };
 

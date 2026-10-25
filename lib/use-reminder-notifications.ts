@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { AppState } from "react-native";
 import { router } from "expo-router";
+import { alarmsSupported, getRingingAlarm, subscribeToAlarms } from "@/lib/alarms";
 import { useAuth } from "@/lib/auth-context";
 import { useApplications } from "@/lib/applications-store";
 import {
@@ -35,4 +37,29 @@ export const useReminderNotifications = () => {
         () => subscribeToReminderTaps((id) => router.push({ pathname: "/application/[id]", params: { id } })),
         [],
     );
+
+    // Shows the ringing screen when an alarm goes off while the app is open, and whenever the app
+    // comes to the front with one still ringing (e.g. opened by the alarm's full-screen launch)
+    useEffect(() => {
+        if (!alarmsSupported || !user) return;
+        let shownId: string | null = null;
+        const show = (id: string) => {
+            if (shownId === id) return;
+            shownId = id;
+            router.push({ pathname: "/alarm", params: { id } });
+        };
+        const checkRinging = () =>
+            getRingingAlarm().then((alarm) => {
+                if (alarm?.id) show(alarm.id);
+                else shownId = null;
+            });
+
+        checkRinging();
+        const unsubscribe = subscribeToAlarms(show);
+        const appState = AppState.addEventListener("change", (state) => state === "active" && checkRinging());
+        return () => {
+            unsubscribe();
+            appState.remove();
+        };
+    }, [user]);
 };

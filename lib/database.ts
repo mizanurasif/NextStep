@@ -78,4 +78,12 @@ export const addApplication = async (uid: string, input: ApplicationInput) => {
 export const updateApplication = (uid: string, id: string, changes: Partial<ApplicationInput>) =>
     update(ref(db, `users/${uid}/applications/${id}`), withoutUndefined({ ...changes, updatedAt: now() }));
 
-export const deleteApplication = (uid: string, id: string) => remove(ref(db, `users/${uid}/applications/${id}`));
+// Saves an edit: a field left empty in the form (undefined) is written as null, which
+// Realtime Database treats as "delete", so clearing a field really clears it
+export const editApplication = (uid: string, id: string, changes: Partial<ApplicationInput>) =>
+    update(
+        ref(db, `users/${uid}/applications/${id}`),
+        Object.fromEntries(Object.entries({ ...changes, updatedAt: now() }).map(([key, value]) => [key, value ?? null])),
+    );
+
+export const deleteApplication =(uid: string, id: string) => remove(ref(db, `users/${uid}/applications/${id}`));

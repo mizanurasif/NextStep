@@ -1,6 +1,6 @@
 {
   "name": "NextStep",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
@@ -37,6 +37,7 @@
     "react-native": "0.86.3",
     "react-native-css": "3.1.0-rc.0",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-notify-kit": "^10.9.1",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",

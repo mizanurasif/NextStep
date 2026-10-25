@@ -47,9 +47,9 @@ export const ON_DAY_HOUR = 9;
 
 export type ReminderPreset = { key: string; label: string; minutesBefore: number; kind?: "on_day" };
 
-// A reminder has to be at least a minute from now and before the deadline
-export const isValidReminderTime = (time: Dayjs, deadline: Dayjs, now: Dayjs) =>
-    !time.isBefore(now.add(1, "minute")) && time.isBefore(deadline);
+// A reminder has to be at least a minute from now, and before the deadline when there is one
+export const isValidReminderTime = (time: Dayjs, deadline: Dayjs | null, now: Dayjs) =>
+    !time.isBefore(now.add(1, "minute")) && (!deadline || time.isBefore(deadline));
 
 // The preset reminders that fit how far away the deadline is:
 //   over a week -> 1 week, 3 days, on the day; under a week -> 3 days, on the day;
@@ -91,9 +91,12 @@ export const APPLICATION_FILTERS: { key: ApplicationFilter; label: string; chipC
 // Stages that mean the application or email hasn't been sent yet
 const NOT_SUBMITTED_STAGES: ApplicationStage[] = ["saved", "preparing", "draft"];
 
-// A deadline only matters while you still have to act: before applying or
-// submitting, or while an offer waits for your answer
-const DEADLINE_STAGES: ApplicationStage[] = ["saved", "preparing", "offer"];
+// A deadline only matters while you still have to act: before applying, submitting
+// or emailing a professor, or while an offer waits for your answer
+const DEADLINE_STAGES: ApplicationStage[] = ["saved", "preparing", "offer", "draft"];
+
+// Stages where nothing is left to do, so no reminders should go off
+export const CLOSED_STAGES: ApplicationStage[] = ["rejected", "admitted", "declined", "replied"];
 
 export const hasLiveDeadline = (application: Application) =>
     !!application.deadline && DEADLINE_STAGES.includes(application.stage);
@@ -191,12 +194,13 @@ export const needsFollowUp = (professor: ProfessorApplication, now: Dayjs) =>
     professor.stage === "follow_up_due" || (professor.followUpAt !== null && !dayjs(professor.followUpAt).isAfter(now));
 
 // The one date worth showing on a card: the deadline, or the follow-up for a professor
+// already emailed (a professor still in draft shows its deadline, like the other types)
 export const getCardDate = (application: Application, now: Dayjs): { label: string; urgent: boolean } | null => {
-    if (application.type === "professor") {
+    if (application.type === "professor" && application.stage !== "draft") {
         if (application.stage === "replied") {
             return { label: application.repliedAt ? `Replied ${dayjs(application.repliedAt).format("MMM D")}` : "Replied", urgent: false };
         }
-        if (application.stage === "declined" || application.stage === "draft") return null;
+        if (application.stage === "declined") return null;
         if (needsFollowUp(application, now)) return { label: "Follow up", urgent: true };
         return application.followUpAt ? { label: `Follow up ${dayjs(application.followUpAt).format("MMM D")}`, urgent: false } : null;
     }
@@ -224,9 +228,10 @@ export const getCardDate = (application: Application, now: Dayjs): { label: stri
     return { label: deadline.format("MMM D"), urgent: isWithinWeek(deadline.toISOString()) };
 };
 
-// The date an item is sorted by: the follow-up date for a professor, the deadline for everything else
+// The date an item is sorted by: the follow-up date for a professor (or the deadline before
+// one is set), the deadline for everything else
 const getSortDate = (application: Application) =>
-    application.type === "professor" ? application.followUpAt : application.deadline;
+    application.type === "professor" ? (application.followUpAt ?? application.deadline) : application.deadline;
 
 // 0 = date still ahead, 1 = no date, 2 = date passed
 const getDeadlineGroup = (application: Application, now: Dayjs) => {
@@ -267,8 +272,9 @@ export const getLinkedProfessors = (applications: Application[], universityId: s
     applications.filter((a): a is ProfessorApplication => a.type === "professor" && a.linkedApplicationId === universityId);
 
 // `anchor` is the deadline (or follow-up date) the reminder counts back from
-export const formatReminder = ({ minutesBefore, kind }: Reminder, anchor?: string | null) => {
+export const formatReminder = ({ minutesBefore, kind, at }: Reminder, anchor?: string | null) => {
     if (kind === "on_day") return `On the day · ${ON_DAY_HOUR} AM`;
+    if (kind === "custom" && at) return dayjs(at).format("MMM D, h:mm A");
     if (kind === "custom" && anchor) return dayjs(anchor).subtract(minutesBefore, "minute").format("MMM D, h:mm A");
     if (minutesBefore === 0) return "On the day";
     if (minutesBefore === 10080) return "1 week before";

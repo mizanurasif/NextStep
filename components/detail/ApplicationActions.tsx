@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Pressable, Alert, Platform } from 'react-native'
-import { useRouter } from 'expo-router'
+import { View, Text, Pressable, Alert } from 'react-native'
 import clsx from 'clsx'
 import { useApplications } from '@/lib/applications-store'
 import { STAGES_BY_TYPE, STAGE_META } from '@/lib/applications'
@@ -8,22 +7,9 @@ import { SectionTitle } from '@/components/detail/DetailParts'
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Please try again')
 
-// Alert buttons do nothing on web, so fall back to the browser's confirm dialog there
-const confirmDelete = (onConfirm: () => void) => {
-  if (Platform.OS === 'web') {
-    if (window.confirm('Delete application? This cannot be undone.')) onConfirm()
-    return
-  }
-  Alert.alert('Delete application?', 'This cannot be undone.', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: onConfirm },
-  ])
-}
-
-// Stage picker (update) and delete button shown under every application's details
+// Stage picker shown under every application's details (edit and delete live in the top bar)
 const ApplicationActions = ({ application }: { application: Application }) => {
-  const router = useRouter()
-  const { updateApplication, deleteApplication } = useApplications()
+  const { updateApplication } = useApplications()
   const [isBusy, setIsBusy] = useState(false)
 
   // The listener in ApplicationsProvider redraws the screen once Firebase confirms
@@ -38,19 +24,6 @@ const ApplicationActions = ({ application }: { application: Application }) => {
       setIsBusy(false)
     }
   }
-
-  const handleDelete = () =>
-    confirmDelete(async () => {
-      setIsBusy(true)
-      try {
-        await deleteApplication(application.id)
-        if (router.canGoBack()) router.back()
-        else router.replace('/')
-      } catch (error) {
-        Alert.alert('Delete failed', errorMessage(error))
-        setIsBusy(false)
-      }
-    })
 
   return (
     <View className="mt-6 gap-3">
@@ -72,15 +45,6 @@ const ApplicationActions = ({ application }: { application: Application }) => {
           )
         })}
       </View>
-
-      <Pressable
-        className="mt-4 items-center rounded-2xl border border-red-500/40 py-3"
-        onPress={handleDelete}
-        disabled={isBusy}
-        accessibilityRole="button"
-      >
-        <Text className="text-base font-sans-bold text-red-500">Delete application</Text>
-      </Pressable>
     </View>
   )
 }

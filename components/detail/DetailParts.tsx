@@ -1,31 +1,86 @@
-import { Fragment, type ReactNode } from 'react'
-import { View, Text, Image, Pressable } from 'react-native'
+import { Fragment, useState, type ReactNode } from 'react'
+import { View, Text, Image, Pressable, Alert, Platform } from 'react-native'
 import { useRouter } from 'expo-router'
+import Ionicons from '@expo/vector-icons/Ionicons'
+import { useApplications } from '@/lib/applications-store'
 import clsx from 'clsx'
 import dayjs, { type Dayjs } from 'dayjs'
 import { colors } from '@/constants/theme'
 import { icons } from '@/constants/icons'
 import { TYPE_META, formatReminder, getSteps, getTimeDistance } from '@/lib/applications'
 
-export const DetailTopBar = ({ type }: { type: ApplicationType }) => {
+// Alert buttons do nothing on web, so fall back to the browser's confirm dialog there
+const confirmDelete = (title: string, onConfirm: () => void) => {
+  const message = `“${title}” will be deleted, with its reminders. This can't be undone.`
+  if (Platform.OS === 'web') {
+    if (window.confirm(`Delete application?\n\n${message}`)) onConfirm()
+    return
+  }
+  Alert.alert('Delete application?', message, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: onConfirm },
+  ])
+}
+
+// Back on the left, the type in the middle, and Edit / Delete on the right when there's an application
+export const DetailTopBar = ({ type, application }: { type: ApplicationType; application?: Application }) => {
   const router = useRouter()
+  const { deleteApplication } = useApplications()
+  const [isDeleting, setIsDeleting] = useState(false)
   const meta = TYPE_META[type]
+
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'))
+
+  const handleDelete = () => {
+    if (!application) return
+    confirmDelete(application.title, async () => {
+      setIsDeleting(true)
+      try {
+        await deleteApplication(application.id)
+        goBack()
+      } catch (error) {
+        Alert.alert('Delete failed', error instanceof Error ? error.message : 'Please try again')
+        setIsDeleting(false)
+      }
+    })
+  }
 
   return (
     <View className="detail-topbar">
-      <Pressable
-        className="detail-back"
-        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-      >
-        <Image source={icons.back} className="size-5" tintColor={colors.primary} />
-      </Pressable>
+      {/* Equal-width sides keep the type chip centred */}
+      <View className="flex-1 flex-row">
+        <Pressable className="detail-back" onPress={goBack} accessibilityRole="button" accessibilityLabel="Back">
+          <Image source={icons.back} className="size-5" tintColor={colors.primary} />
+        </Pressable>
+      </View>
       <View className={clsx('type-chip px-3.5 py-1.5', meta.chipClass)}>
         <Text className="type-chip-text">{meta.label}</Text>
       </View>
-      {/* Keeps the chip centred until an edit button lives here */}
-      <View className="size-11" />
+      <View className="flex-1 flex-row justify-end gap-2">
+        {application && (
+          <>
+            <Pressable
+              className="detail-back"
+              onPress={() => router.push({ pathname: '/application/edit/[id]', params: { id: application.id } })}
+              disabled={isDeleting}
+              accessibilityRole="button"
+              accessibilityLabel="Edit application"
+            >
+              <Ionicons name="create-outline" size={20} color={colors.primary} />
+            </Pressable>
+            <Pressable
+              className="detail-back border-red-500/40"
+              onPress={handleDelete}
+              disabled={isDeleting}
+              accessibilityRole="button"
+              accessibilityLabel="Delete application"
+              accessibilityState={{ disabled: isDeleting, busy: isDeleting }}
+            >
+              <Ionicons name="trash-outline" size={20} color="#ef4444" />
+            </Pressable>
+          </>
+        )}
+      </View>
     </View>
   )
 }
@@ -50,10 +105,10 @@ export const KeyDateCard = ({ label, value, badge }: { label: string; value: str
   </View>
 )
 
-// The badge on KeyDateCard: "5 / hours left" when under a day away, otherwise "2 / days left" or "9 / days ago"
+// The badge on KeyDateCard: "2 / days left", "5h 20m / left", "45 / min left", or the same with "ago" once passed
 export const countdownBadge = (date: string, now: Dayjs, future: string, past: string) => {
   const { value, unit, inPast } = getTimeDistance(date, now)
-  return { number: String(value), unit: `${unit} ${inPast ? past : future}` }
+  return { number: value, unit: [unit, inPast ? past : future].filter(Boolean).join(' ') }
 }
 
 export const StageStepper = ({ application }: { application: Application }) => (
@@ -107,12 +162,14 @@ export const EventCard = ({ date, title, meta }: { date: string; title: string; 
   </View>
 )
 
-export const ReminderChips = ({ reminders }: { reminders: Reminder[] }) => (
+// `anchor` is the date the reminders count back from, needed to show custom reminder times
+export const ReminderChips = ({ reminders, anchor }: { reminders: Reminder[]; anchor?: string | null }) => (
   <View className="reminder-row">
     {reminders.map((reminder) => (
       <View key={reminder.id} className={clsx('reminder-chip', reminder.enabled && 'reminder-chip-on')}>
         <Text className="reminder-chip-text">
-          {formatReminder(reminder.minutesBefore)}
+          {formatReminder(reminder, anchor)}
+          {reminder.alarm ? ' · ⏰ alarm' : ''}
           {reminder.enabled ? '' : ' · off'}
         </Text>
       </View>
@@ -145,10 +202,43 @@ export const Timeline = ({ events }: { events: TimelineEvent[] }) => {
   )
 }
 
-export const Notes = ({ notes }: { notes?: string }) =>
-  notes ? (
+const NOTES_PREVIEW_LINES = 4
+// 20px lines for 14px text, set directly because the `leading-5` class came out as a huge gap
+const NOTES_LINE = { lineHeight: 20 }
+
+// Takes only the room the text needs: runs of blank lines shrink to one, and long notes show
+// the first few lines with "Show more"
+export const Notes = ({ notes }: { notes?: string }) => {
+  const [expanded, setExpanded] = useState(false)
+  const [isLong, setIsLong] = useState(false)
+  const text = notes?.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+  if (!text) return null
+
+  return (
     <>
       <SectionTitle>Notes</SectionTitle>
-      <Text className="notes-text">{notes}</Text>
+      <View>
+        {/* An invisible full-length copy counts the lines; the visible one may be cut short,
+            and a cut-short Text only reports its visible lines on iOS */}
+        <Text
+          className="notes-text absolute left-0 right-0 opacity-0"
+          style={NOTES_LINE}
+          onTextLayout={(event) => setIsLong(event.nativeEvent.lines.length > NOTES_PREVIEW_LINES)}
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+        >
+          {text}
+        </Text>
+        <Text className="notes-text" style={NOTES_LINE} numberOfLines={expanded ? undefined : NOTES_PREVIEW_LINES}>
+          {text}
+        </Text>
+      </View>
+      {isLong && (
+        <Pressable onPress={() => setExpanded((value) => !value)} accessibilityRole="button" hitSlop={8} className="mt-1 self-start">
+          <Text className="text-sm font-sans-bold text-accent">{expanded ? 'Show less' : 'Show more'}</Text>
+        </Pressable>
+      )}
     </>
-  ) : null
+  )
+}

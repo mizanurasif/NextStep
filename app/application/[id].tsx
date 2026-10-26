@@ -1,8 +1,10 @@
-import { ScrollView, Text, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native'
 import { Redirect, useLocalSearchParams } from 'expo-router'
 import { styled } from 'nativewind'
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context'
 import dayjs from 'dayjs'
+import { colors } from '@/constants/theme'
 import { useApplications } from '@/lib/applications-store'
 import { useAuth } from '@/lib/auth-context'
 import { findApplication } from '@/lib/applications'
@@ -10,6 +12,7 @@ import { DetailTopBar } from '@/components/detail/DetailParts'
 import JobDetail from '@/components/detail/JobDetail'
 import UniversityDetail from '@/components/detail/UniversityDetail'
 import ProfessorDetail from '@/components/detail/ProfessorDetail'
+import ApplicationActions from '@/components/detail/ApplicationActions'
 
 const SafeAreaView = styled(RNSafeAreaView)
 
@@ -17,12 +20,25 @@ const SafeAreaView = styled(RNSafeAreaView)
 const ApplicationScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { user, initializing } = useAuth()
-  const { applications } = useApplications()
+  const { applications, loading, error } = useApplications()
+  // Re-renders every 30 seconds so the minute countdown stays current
+  const [now, setNow] = useState(() => dayjs())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(dayjs()), 30_000)
+    return () => clearInterval(timer)
+  }, [])
 
   if (initializing) return null
   if (!user) return <Redirect href="/sign-in" />
+  // Without this, opening the screen before the first snapshot would show "Not found"
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator color={colors.primary} />
+      </SafeAreaView>
+    )
+  }
 
-  const now = dayjs()
   const application = findApplication(applications, id)
 
   return (
@@ -32,7 +48,7 @@ const ApplicationScreen = () => {
           <View>
             <DetailTopBar type="job" />
             <Text className="detail-title">Not found</Text>
-            <Text className="detail-subtitle">This application may have been deleted.</Text>
+            <Text className="detail-subtitle">{error ?? 'This application may have been deleted.'}</Text>
           </View>
         ) : application.type === 'job' ? (
           <JobDetail job={application} now={now} />
@@ -41,6 +57,7 @@ const ApplicationScreen = () => {
         ) : (
           <ProfessorDetail professor={application} now={now} />
         )}
+        {application && <ApplicationActions application={application} />}
       </ScrollView>
     </SafeAreaView>
   )

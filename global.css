@@ -486,7 +486,9 @@
     }
 
     .notes-text {
-        @apply text-sm font-sans-medium leading-5 text-primary/80;
+        /* No leading-* here: this NativeWind version turns it into a huge gap between lines.
+           The line height is set on the Text in DetailParts instead */
+        @apply text-sm font-sans-medium text-primary/80;
     }
 
     .doc-row {

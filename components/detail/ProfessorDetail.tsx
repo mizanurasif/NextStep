@@ -69,7 +69,7 @@ const ProfessorDetail = ({ professor, now }: { professor: ProfessorApplication; 
 
   return (
     <View>
-      <DetailTopBar type="professor" />
+      <DetailTopBar type="professor" application={professor} />
 
       <View className="prof-header">
         <View className="prof-avatar">
@@ -113,6 +113,7 @@ const ProfessorDetail = ({ professor, now }: { professor: ProfessorApplication; 
       <SectionTitle>Details</SectionTitle>
       <InfoRows
         rows={[
+          { label: 'Deadline', value: professor.deadline && dayjs(professor.deadline).format('MMM D, YYYY · h:mm A') },
           { label: 'Research area', value: professor.researchArea },
           { label: 'Email subject', value: professor.emailSubject },
           { label: 'Sent on', value: professor.sentAt && dayjs(professor.sentAt).format('MMM D, YYYY') },
@@ -133,10 +134,10 @@ const ProfessorDetail = ({ professor, now }: { professor: ProfessorApplication; 
         </>
       )}
 
-      {professor.reminders.length > 0 && professor.stage !== 'replied' && (
+      {professor.reminders.length > 0 && professor.stage !== 'replied' && professor.stage !== 'declined' && (
         <>
-          <SectionTitle>Follow-up reminder</SectionTitle>
-          <ReminderChips reminders={professor.reminders} />
+          <SectionTitle>Reminders</SectionTitle>
+          <ReminderChips reminders={professor.reminders} anchor={professor.deadline} />
         </>
       )}
 

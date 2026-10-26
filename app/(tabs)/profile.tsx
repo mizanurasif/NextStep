@@ -8,13 +8,7 @@ import clsx from 'clsx';
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useApplications } from '@/lib/applications-store';
-import {
-  DEFAULT_REMINDERS,
-  FOLLOW_UP_DAYS,
-  formatReminderShort,
-  getInitials,
-  getProfileStats,
-} from '@/lib/applications';
+import { FOLLOW_UP_DAYS, getInitials, getProfileStats } from '@/lib/applications';
 
 const SafeAreaView = styled(RNSafeAreaView);
 const StyledImage = styled(Image);
@@ -42,7 +36,7 @@ const Profile = () => {
   ];
 
   const settings = [
-    { title: 'Default reminders', detail: 'For new deadlines', pill: DEFAULT_REMINDERS.map(formatReminderShort).join(' · ') },
+    { title: 'Deadline alert', detail: 'When a deadline passes', pill: 'Always' },
     { title: 'Follow-up nudge', detail: 'When a professor has not replied', pill: `${FOLLOW_UP_DAYS} days` },
     { title: 'Account', detail: `Signed in with ${PROVIDER_LABELS[providerId] ?? providerId}`, pill: 'Firebase' },
   ];

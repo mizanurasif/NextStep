@@ -58,7 +58,7 @@ const UniversityDetail = ({ university, now }: { university: UniversityApplicati
 
   return (
     <View>
-      <DetailTopBar type="university" />
+      <DetailTopBar type="university" application={university} />
       <Text className="detail-title">{university.title}</Text>
       <Text className="detail-subtitle">{subtitle}</Text>
 
@@ -128,7 +128,7 @@ const UniversityDetail = ({ university, now }: { university: UniversityApplicati
       {university.reminders.length > 0 && (
         <>
           <SectionTitle>Reminders</SectionTitle>
-          <ReminderChips reminders={university.reminders} />
+          <ReminderChips reminders={university.reminders} anchor={university.deadline} />
         </>
       )}
 

@@ -57,7 +57,7 @@ const JobDetail = ({ job, now }: { job: JobApplication; now: Dayjs }) => {
 
   return (
     <View>
-      <DetailTopBar type="job" />
+      <DetailTopBar type="job" application={job} />
       <Text className="detail-title">{job.title}</Text>
       <Text className="detail-subtitle">{subtitle}</Text>
 
@@ -100,7 +100,7 @@ const JobDetail = ({ job, now }: { job: JobApplication; now: Dayjs }) => {
       {job.reminders.length > 0 && (
         <>
           <SectionTitle>Reminders</SectionTitle>
-          <ReminderChips reminders={job.reminders} />
+          <ReminderChips reminders={job.reminders} anchor={job.deadline} />
         </>
       )}
 

@@ -84,7 +84,7 @@ export default function App() {
               <DueSoonCard application={item} now={now} />
             </Pressable>
           )}
-          ListEmptyComponent={<Text className="home-empty-state">Nothing due soon</Text>}
+          ListEmptyComponent={<Text className="home-empty-state">Nothing due in this week</Text>}
         />
 
         <View className="list-head">

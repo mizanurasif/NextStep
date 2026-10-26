@@ -28,6 +28,7 @@ const normalizeApplication = (id: string, value: Application): Application => {
         deadline: value.deadline ?? null,
         reminders: value.reminders ?? [],
         timeline: value.timeline ?? [],
+        ...(value.circular && { circular: { text: value.circular.text, headings: value.circular.headings ?? [] } }),
     };
     switch (base.type) {
         case "job":
@@ -68,11 +69,13 @@ export const subscribeToApplications = (
         onError,
     );
 
-export const addApplication = async (uid: string, input: ApplicationInput) => {
+// push() makes the key on the device, so the id is known at once; `saved` settles only when
+// the server confirms, which waits for a connection while offline
+export const addApplication = (uid: string, input: ApplicationInput) => {
     const newRef = push(applicationsRef(uid));
     const timestamp = now();
-    await update(newRef, withoutUndefined({ ...input, createdAt: timestamp, updatedAt: timestamp }));
-    return newRef.key as string;
+    const saved = update(newRef, withoutUndefined({ ...input, createdAt: timestamp, updatedAt: timestamp }));
+    return { id: newRef.key as string, saved };
 };
 
 export const updateApplication = (uid: string, id: string, changes: Partial<ApplicationInput>) =>

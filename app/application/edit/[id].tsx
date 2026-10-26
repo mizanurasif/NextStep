@@ -38,7 +38,8 @@ const EditApplication = () => {
       key={application.id}
       application={application}
       onSave={async (changes) => {
-        await editApplication(application.id, changes)
+        // Doesn't wait for the server, so this works offline too
+        editApplication(application.id, changes)
         router.back()
       }}
     />

@@ -4,6 +4,7 @@ import {styled} from 'nativewind';
 import { SafeAreaView as RNSafeAreaView} from "react-native-safe-area-context";
 import dayjs from "dayjs";
 import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { USER } from "@/constants/data";
 import { useApplications } from "@/lib/applications-store";
 import { icons } from "@/constants/icons";
@@ -39,6 +40,9 @@ export default function App() {
             </View>
           </View>
           <View className="home-actions">
+            <Pressable className="home-icon-button" onPress={() => router.push("/ask")} accessibilityRole="button" accessibilityLabel="Ask NextStep">
+              <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
+            </Pressable>
             <Pressable className="home-icon-button" accessibilityRole="button" accessibilityLabel="Notifications">
               <Image source={icons.bell} className="size-5" tintColor={colors.primary} />
               <View className="home-icon-dot" />
@@ -84,7 +88,7 @@ export default function App() {
               <DueSoonCard application={item} now={now} />
             </Pressable>
           )}
-          ListEmptyComponent={<Text className="home-empty-state">Nothing due in this week</Text>}
+          ListEmptyComponent={<Text className="home-empty-state">Nothing due this week</Text>}
         />
 
         <View className="list-head">

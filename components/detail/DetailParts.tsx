@@ -33,10 +33,10 @@ export const DetailTopBar = ({ type, application }: { type: ApplicationType; app
 
   const handleDelete = () => {
     if (!application) return
-    confirmDelete(application.title, async () => {
+    confirmDelete(application.title, () => {
       setIsDeleting(true)
       try {
-        await deleteApplication(application.id)
+        deleteApplication(application.id)
         goBack()
       } catch (error) {
         Alert.alert('Delete failed', error instanceof Error ? error.message : 'Please try again')

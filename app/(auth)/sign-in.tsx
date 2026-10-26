@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { styled } from 'nativewind'
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context'
 import clsx from 'clsx'
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import images from "@/constants/images";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
 const SafeAreaView = styled(RNSafeAreaView)
 
@@ -43,12 +44,10 @@ const SignIn = () => {
         <ScrollView className="auth-scroll" contentContainerClassName="auth-content" keyboardShouldPersistTaps="handled">
           <View className="auth-brand-block">
             <View className="auth-logo-wrap">
-              <View className="auth-logo-mark">
-                <Text className="auth-logo-mark-text">S</Text>
-              </View>
+              <Image source={images.logoMark} className="auth-logo-mark" accessible={false} />
               <View>
-                <Text className="auth-wordmark">Subscription</Text>
-                <Text className="auth-wordmark-sub">Track every renewal</Text>
+                <Text className="auth-wordmark">NextStep</Text>
+                <Text className="auth-wordmark-sub">Track every application</Text>
               </View>
             </View>
             <Text className="auth-title">Welcome back</Text>

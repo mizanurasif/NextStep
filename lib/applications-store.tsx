@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { Alert } from "react-native";
 import { useAuth } from "@/lib/auth-context";
 import * as database from "@/lib/database";
 
@@ -6,12 +7,19 @@ type ApplicationsState = {
     applications: Application[];
     loading: boolean;
     error: string | null;
-    addApplication: (input: ApplicationInput) => Promise<string>;
-    updateApplication: (id: string, changes: Partial<ApplicationInput>) => Promise<void>;
+    // Returns the new id right away
+    addApplication: (input: ApplicationInput) => string;
+    updateApplication: (id: string, changes: Partial<ApplicationInput>) => void;
     // Like updateApplication, but fields left undefined are cleared instead of kept
-    editApplication: (id: string, changes: Partial<ApplicationInput>) => Promise<void>;
-    deleteApplication: (id: string) => Promise<void>;
+    editApplication: (id: string, changes: Partial<ApplicationInput>) => void;
+    deleteApplication: (id: string) => void;
 };
+
+// A write reaches the local cache (and the listener) at once, but its promise settles only when the
+// server confirms, which never happens while offline. So screens don't wait for it; a write the
+// server rejects (e.g. by the security rules) is rolled back by Firebase and reported here
+const reportFailure = (title: string) => (error: unknown) =>
+    Alert.alert(title, error instanceof Error ? error.message : "Please try again");
 
 const ApplicationsContext = createContext<ApplicationsState | null>(null);
 
@@ -51,10 +59,20 @@ export const ApplicationsProvider = ({ children }: { children: ReactNode }) => {
         applications,
         loading,
         error,
-        addApplication: (input) => database.addApplication(requireUid(), input),
-        updateApplication: (id, changes) => database.updateApplication(requireUid(), id, changes),
-        editApplication: (id, changes) => database.editApplication(requireUid(), id, changes),
-        deleteApplication: (id) => database.deleteApplication(requireUid(), id),
+        addApplication: (input) => {
+            const { id, saved } = database.addApplication(requireUid(), input);
+            saved.catch(reportFailure("Could not save"));
+            return id;
+        },
+        updateApplication: (id, changes) => {
+            database.updateApplication(requireUid(), id, changes).catch(reportFailure("Update failed"));
+        },
+        editApplication: (id, changes) => {
+            database.editApplication(requireUid(), id, changes).catch(reportFailure("Could not save"));
+        },
+        deleteApplication: (id) => {
+            database.deleteApplication(requireUid(), id).catch(reportFailure("Delete failed"));
+        },
     };
 
     return <ApplicationsContext.Provider value={value}>{children}</ApplicationsContext.Provider>;

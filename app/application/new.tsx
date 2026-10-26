@@ -14,7 +14,8 @@ const NewApplication = () => {
   return (
     <ApplicationForm
       onSave={async (input) => {
-        const id = await addApplication(input)
+        // Doesn't wait for the server, so this works offline too
+        const id = addApplication(input)
         // Swap this form for the new item's detail screen
         router.replace({ pathname: '/application/[id]', params: { id } })
       }}

@@ -1,27 +1,22 @@
-import { useState } from 'react'
 import { View, Text, Pressable, Alert } from 'react-native'
 import clsx from 'clsx'
+import { router } from 'expo-router'
 import { useApplications } from '@/lib/applications-store'
 import { STAGES_BY_TYPE, STAGE_META } from '@/lib/applications'
 import { SectionTitle } from '@/components/detail/DetailParts'
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Please try again')
 
-// Stage picker shown under every application's details (edit and delete live in the top bar)
+// Stage picker and the AI chat button, shown under every application's details (edit and delete live in the top bar)
 const ApplicationActions = ({ application }: { application: Application }) => {
   const { updateApplication } = useApplications()
-  const [isBusy, setIsBusy] = useState(false)
-
-  // The listener in ApplicationsProvider redraws the screen once Firebase confirms
-  const changeStage = async (stage: ApplicationStage) => {
-    if (isBusy || stage === application.stage) return
-    setIsBusy(true)
+  // The listener in ApplicationsProvider redraws the screen straight from the local cache, even offline
+  const changeStage = (stage: ApplicationStage) => {
+    if (stage === application.stage) return
     try {
-      await updateApplication(application.id, { stage } as Partial<ApplicationInput>)
+      updateApplication(application.id, { stage } as Partial<ApplicationInput>)
     } catch (error) {
       Alert.alert('Update failed', errorMessage(error))
-    } finally {
-      setIsBusy(false)
     }
   }
 
@@ -36,15 +31,22 @@ const ApplicationActions = ({ application }: { application: Application }) => {
               key={stage}
               className={clsx('reminder-chip', isCurrent && 'reminder-chip-on')}
               onPress={() => changeStage(stage)}
-              disabled={isBusy}
               accessibilityRole="radio"
-              accessibilityState={{ selected: isCurrent, disabled: isBusy }}
+              accessibilityState={{ selected: isCurrent }}
             >
               <Text className="reminder-chip-text">{STAGE_META[stage].label}</Text>
             </Pressable>
           )
         })}
       </View>
+      {/* The chat, searching only this application's circular and notes */}
+      <Pressable
+        className="auth-secondary-button mt-3"
+        onPress={() => router.push({ pathname: '/ask', params: { applicationId: application.id } })}
+        accessibilityRole="button"
+      >
+        <Text className="auth-secondary-button-text">✨ Ask about this application</Text>
+      </Pressable>
     </View>
   )
 }

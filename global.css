@@ -787,12 +787,9 @@
         @apply mb-7 flex-row items-center gap-3;
     }
 
+    /* The app logo (assets/images/logo-mark.png), already a rounded tile */
     .auth-logo-mark {
-        @apply relative size-14 items-center justify-center rounded-2xl bg-accent;
-    }
-
-    .auth-logo-mark-text {
-        @apply text-2xl font-sans-extrabold text-background;
+        @apply size-14 rounded-2xl;
     }
 
     .auth-wordmark {

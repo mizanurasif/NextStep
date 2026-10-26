@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Keyboard, Image, Switch, Alert } from 'react-native'
+import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Keyboard, Image, Switch, Alert, ActivityIndicator } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
 import { styled } from 'nativewind'
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context'
@@ -9,6 +9,7 @@ import { colors } from '@/constants/theme'
 import { FOLLOW_UP_DAYS, STAGES_BY_TYPE, STAGE_META, TYPE_META, getReminderPresets, isValidReminderTime } from '@/lib/applications'
 import DateTimeField from '@/components/DateTimeField'
 import { ensureAlarmPermissions } from '@/lib/alarms'
+import { MAX_CIRCULAR_CHARS, extractCircular, type CircularFields } from '@/lib/ai'
 
 const SafeAreaView = styled(RNSafeAreaView)
 
@@ -121,6 +122,13 @@ const ApplicationForm = ({ application, onSave }: Props) => {
   const [notes, setNotes] = useState(application?.notes ?? '')
   const [showErrors, setShowErrors] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  // "Fill from a circular": the pasted text, and whether the AI is reading it or has filled the form
+  const [circularOpen, setCircularOpen] = useState(false)
+  const [circularText, setCircularText] = useState('')
+  const [isReadingCircular, setIsReadingCircular] = useState(false)
+  const [circularError, setCircularError] = useState('')
+  // The circular the form was filled from, saved with a new application so it can be searched later
+  const [circular, setCircular] = useState<CircularSource | null>(null)
 
   // Notes is the last field, so showing it while typing means scrolling to the end
   const scrollRef = useRef<ScrollView>(null)
@@ -167,6 +175,42 @@ const ApplicationForm = ({ application, onSave }: Props) => {
     setType(next)
     setStage(START_STAGES[next][0])
     setShowErrors(false)
+  }
+
+  // Only fills what the circular states, so anything already typed stays unless the AI found a value;
+  // the summary is added to the notes rather than replacing them
+  const applyCircular = (fields: CircularFields) => {
+    changeType(fields.type)
+    if (fields.title) setTitle(fields.title)
+    if (fields.organization) setOrganization(fields.organization)
+    if (fields.link) setLink(fields.link)
+    if (fields.location) setLocation(fields.location)
+    if (fields.country) setCountry(fields.country)
+    if (fields.intake) setIntake(fields.intake)
+    if (fields.contactEmail) setContactEmail(fields.contactEmail)
+    if (fields.researchArea) setResearchArea(fields.researchArea)
+    if (fields.deadline) {
+      setHasDeadline(true)
+      setDeadline(new Date(fields.deadline))
+    }
+    const summary = fields.summary
+    if (summary) setNotes((current) => (current.trim() ? `${current.trim()}\n\n${summary}` : summary))
+  }
+
+  const readCircular = async () => {
+    if (isReadingCircular) return
+    setIsReadingCircular(true)
+    setCircularError('')
+    try {
+      const { fields, headings } = await extractCircular(circularText)
+      applyCircular(fields)
+      setCircular({ text: circularText.trim(), headings })
+      setCircularOpen(false)
+    } catch (error) {
+      setCircularError(error instanceof Error ? error.message : 'Could not read the circular')
+    } finally {
+      setIsReadingCircular(false)
+    }
   }
 
   const togglePreset = (key: string) =>
@@ -279,7 +323,9 @@ const ApplicationForm = ({ application, onSave }: Props) => {
     }
     setIsSaving(true)
     try {
-      await onSave(buildInput())
+      // Only a new application gets the circular; an edit would otherwise clear the one already saved
+      const input = buildInput()
+      await onSave(!isEditing && circular ? { ...input, circular } : input)
     } catch (error) {
       Alert.alert('Could not save', error instanceof Error ? error.message : 'Please try again')
     } finally {
@@ -301,6 +347,55 @@ const ApplicationForm = ({ application, onSave }: Props) => {
         </View>
 
         <ScrollView ref={scrollRef} contentContainerClassName="gap-4 px-5 py-4" keyboardShouldPersistTaps="handled">
+          {/* AI fills the form from a pasted circular; the user still checks everything and saves */}
+          {!isEditing && !circularOpen && (
+            <Pressable className="auth-secondary-button" onPress={() => setCircularOpen(true)} accessibilityRole="button">
+              <Text className="auth-secondary-button-text">✨ Fill from a circular</Text>
+            </Pressable>
+          )}
+          {circularOpen && (
+            <Field label="Paste the circular" error={circularError}>
+              <TextInput
+                className="auth-input max-h-60"
+                value={circularText}
+                onChangeText={setCircularText}
+                placeholder="Copy the whole job post, program page or professor profile and paste it here"
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+                textAlignVertical="top"
+                maxLength={MAX_CIRCULAR_CHARS}
+                editable={!isReadingCircular}
+                autoFocus
+              />
+              <View className="flex-row gap-2">
+                <Pressable
+                  className="reminder-chip"
+                  onPress={() => {
+                    setCircularOpen(false)
+                    setCircularError('')
+                  }}
+                  disabled={isReadingCircular}
+                  accessibilityRole="button"
+                >
+                  <Text className="reminder-chip-text">Cancel</Text>
+                </Pressable>
+                <Pressable
+                  className={clsx('reminder-chip reminder-chip-on flex-row items-center gap-2', (!circularText.trim() || isReadingCircular) && 'opacity-50')}
+                  onPress={readCircular}
+                  disabled={!circularText.trim() || isReadingCircular}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !circularText.trim() || isReadingCircular, busy: isReadingCircular }}
+                >
+                  {isReadingCircular && <ActivityIndicator size="small" color={colors.primary} />}
+                  <Text className="reminder-chip-text">{isReadingCircular ? 'Reading…' : 'Fill form'}</Text>
+                </Pressable>
+              </View>
+            </Field>
+          )}
+          {circular && !circularOpen && (
+            <Text className="auth-helper">Filled from the circular by AI. Check every field, especially the deadline, before saving.</Text>
+          )}
+
           {/* The type decides which fields exist, so it's fixed once the application is saved */}
           <View className="flex-row gap-2" accessibilityRole="radiogroup">
             {TYPES.map((option) => {

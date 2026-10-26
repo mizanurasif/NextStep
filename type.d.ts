@@ -83,6 +83,13 @@ declare global {
         currency: string;
     }
 
+    // The circular the application was filled from, kept so it can be searched (and re-indexed any time).
+    // `headings` are the section headings found in it, where the search index splits it
+    interface CircularSource {
+        text: string;
+        headings: string[];
+    }
+
     // Fields every kind of application has
     interface ApplicationBase {
         id: string;
@@ -92,6 +99,7 @@ declare global {
         link?: string;
         deadline: ISODateString | null;
         notes?: string;
+        circular?: CircularSource;
         reminders: Reminder[];
         timeline: TimelineEvent[];
         createdAt: ISODateString;

@@ -16,4 +16,6 @@
     "expo-env.d.ts",
     "nativewind-env.d.ts"
   ],
+  // Edge Functions run on Deno (npm: imports, Deno globals) and are checked when deployed
+  "exclude": ["supabase"],
 }

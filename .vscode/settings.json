@@ -3,5 +3,9 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
-  }
+  },
+  // supabase/functions runs on Deno (npm: imports, the Deno global), not Node.
+  // Needs the Deno extension; the rest of the project stays on the normal TypeScript checker
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.config": "supabase/functions/ai/deno.json"
 }

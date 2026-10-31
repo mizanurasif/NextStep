@@ -1,6 +1,6 @@
+import OpenAI from "openai";
 import { HttpError } from "./http.ts";
-import { generateJson, MODELS } from "./gemini.ts";
-import { splitSections } from "./chunking.ts";
+import { OPENAI_MODEL, openai } from "./openai.ts";
 
 // About 5k tokens: enough for any circular, and it keeps cost and wait time predictable
 export const MAX_CIRCULAR_CHARS = 20_000;
@@ -8,7 +8,7 @@ export const MAX_CIRCULAR_CHARS = 20_000;
 type ApplicationType = "job" | "university" | "professor";
 
 // What the app gets: fields named like the form's, plus the circular's section headings,
-// which it saves with the circular so it can be chunked for search
+// which it saves with the circular
 export type CircularResult = {
   fields: {
     type: ApplicationType;
@@ -32,13 +32,14 @@ type ModelAnswer = Omit<CircularResult["fields"], "type"> & {
   headings: string[];
 };
 
-const text = (description: string) => ({ type: "STRING", nullable: true, description });
+// A JSON schema in strict mode: every field is required, and "not stated" is null, not missing
+const text = (description: string) => ({ type: ["string", "null"], description });
 
 const SCHEMA = {
-  type: "OBJECT",
+  type: "object",
   properties: {
     type: {
-      type: "STRING",
+      type: "string",
       enum: ["job", "university", "professor"],
       description: "job = a job post; university = a degree program or admission notice; professor = a professor, lab or supervisor",
     },
@@ -58,12 +59,27 @@ const SCHEMA = {
       "3 to 6 short lines covering key requirements, salary or funding, and how to apply. Each line starts with '- '",
     ),
     headings: {
-      type: "ARRAY",
-      items: { type: "STRING" },
+      type: "array",
+      items: { type: "string" },
       description: "The document's own section headings (e.g. Responsibilities, Requirements), in order, copied exactly",
     },
   },
-  required: ["type", "title", "organization", "deadline", "deadlineQuote", "summary", "headings"],
+  required: [
+    "type",
+    "title",
+    "organization",
+    "link",
+    "deadline",
+    "deadlineQuote",
+    "location",
+    "country",
+    "intake",
+    "contactEmail",
+    "researchArea",
+    "summary",
+    "headings",
+  ],
+  additionalProperties: false,
 };
 
 const SYSTEM = `You fill in an application tracker from job circulars, university program pages and professor profiles.
@@ -82,24 +98,61 @@ const clean = (value: unknown, max = 200) => {
   return trimmed || null;
 };
 
+// The headings that really are in the text, in order (case-insensitive), from where each one starts
+const headingsInText = (source: string, headings: string[]) => {
+  const lower = source.toLowerCase();
+  const found: string[] = [];
+  let from = 0;
+  for (const heading of headings) {
+    const index = lower.indexOf(heading.toLowerCase().trim(), from);
+    if (index === -1) continue;
+    found.push(heading.trim());
+    from = index + heading.length;
+  }
+  return found;
+};
+
 const formatOffset = (minutes: number) => {
   const sign = minutes < 0 ? "-" : "+";
   const abs = Math.abs(minutes);
   return `${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}:${String(abs % 60).padStart(2, "0")}`;
 };
 
+// One call, one JSON answer shaped by SCHEMA (structured output: the model can't return anything else)
+const askModel = async (input: string): Promise<ModelAnswer> => {
+  let response: OpenAI.Responses.Response;
+  try {
+    response = await openai().responses.create({
+      model: OPENAI_MODEL,
+      instructions: SYSTEM,
+      input,
+      // Pulling fields out of a document needs little reasoning, and low effort keeps it quick
+      reasoning: { effort: "low" },
+      text: { format: { type: "json_schema", name: "circular_fields", schema: SCHEMA, strict: true } },
+      // Nothing continues from this call, so OpenAI doesn't need to keep the circular
+      store: false,
+    });
+  } catch (error) {
+    if (error instanceof OpenAI.RateLimitError) throw new HttpError(503, "The AI is busy right now. Try again in a minute");
+    // The message says why the API refused (wrong key, no credit…); the user only sees a short message
+    console.error("Extraction failed", error instanceof Error ? error.message : error);
+    throw new HttpError(502, "The AI request failed");
+  }
+
+  const refused = response.output.some((item) => item.type === "message" && item.content.some((part) => part.type === "refusal"));
+  if (refused || response.status === "incomplete") throw new HttpError(502, "The AI couldn't read this circular");
+  try {
+    return JSON.parse(response.output_text) as ModelAnswer;
+  } catch {
+    throw new HttpError(502, "The AI returned an unreadable answer");
+  }
+};
+
 export const extractCircular = async (source: string, utcOffsetMinutes: number): Promise<CircularResult> => {
   const now = new Date(Date.now() + utcOffsetMinutes * 60_000).toISOString().slice(0, 10);
-  const answer = await generateJson<ModelAnswer>({
-    model: MODELS.extract,
-    system: SYSTEM,
-    schema: SCHEMA,
-    parts: [
-      {
-        text: `Today is ${now} and the user's time zone is UTC${formatOffset(utcOffsetMinutes)}.\n<document>\n${source}\n</document>`,
-      },
-    ],
-  });
+  const answer = await askModel(
+    `Today is ${now} and the user's time zone is UTC${formatOffset(utcOffsetMinutes)}.\n<document>\n${source}\n</document>`,
+  );
 
   // Don't trust the model: anything that should be copied from the document must actually be in it
   const haystack = normalize(source);
@@ -128,10 +181,11 @@ export const extractCircular = async (source: string, utcOffsetMinutes: number):
       summary: clean(answer.summary, 1500),
     },
     // The model only names the headings (a few words, not the whole document again). Only the ones
-    // really in the text are kept, so the indexer can split the stored circular at them later
-    headings: splitSections(source, Array.isArray(answer.headings) ? answer.headings.slice(0, 30) : [])
-      .map((section) => section.heading)
-      .filter((heading) => heading !== "Overview"),
+    // really in the text are kept
+    headings: headingsInText(
+      source,
+      Array.isArray(answer.headings) ? answer.headings.filter((h): h is string => typeof h === "string" && !!h.trim()).slice(0, 30) : [],
+    ),
   };
 };
 

@@ -39,7 +39,7 @@ const ApplicationActions = ({ application }: { application: Application }) => {
           )
         })}
       </View>
-      {/* The chat, searching only this application's circular and notes */}
+      {/* The research chat, starting from this application */}
       <Pressable
         className="auth-secondary-button mt-3"
         onPress={() => router.push({ pathname: '/ask', params: { applicationId: application.id } })}

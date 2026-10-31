@@ -83,8 +83,8 @@ declare global {
         currency: string;
     }
 
-    // The circular the application was filled from, kept so it can be searched (and re-indexed any time).
-    // `headings` are the section headings found in it, where the search index splits it
+    // The circular the application was filled from, kept so the research agent can read it.
+    // `headings` are the section headings found in it
     interface CircularSource {
         text: string;
         headings: string[];

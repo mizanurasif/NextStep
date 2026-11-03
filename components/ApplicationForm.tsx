@@ -127,7 +127,7 @@ const ApplicationForm = ({ application, onSave }: Props) => {
   const [circularText, setCircularText] = useState('')
   const [isReadingCircular, setIsReadingCircular] = useState(false)
   const [circularError, setCircularError] = useState('')
-  // The circular the form was filled from, saved with a new application so it can be searched later
+  // The circular the form was filled from, saved with a new application so the research agent can read it
   const [circular, setCircular] = useState<CircularSource | null>(null)
 
   // Notes is the last field, so showing it while typing means scrolling to the end

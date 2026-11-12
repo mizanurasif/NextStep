@@ -6,7 +6,8 @@ import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context'
 import clsx from 'clsx'
 import dayjs from 'dayjs'
 import { colors } from '@/constants/theme'
-import { FOLLOW_UP_DAYS, STAGES_BY_TYPE, STAGE_META, TYPE_META, getReminderPresets, isValidReminderTime } from '@/lib/applications'
+import { STAGE_META, TYPE_META, getReminderPresets, isValidReminderTime } from '@/lib/applications'
+import { FOLLOW_UP_DAYS, STAGES_BY_TYPE, changeStage } from '@/lib/stage-transition'
 import DateTimeField from '@/components/DateTimeField'
 import { ensureAlarmPermissions } from '@/lib/alarms'
 import { MAX_CIRCULAR_CHARS, extractCircular, type CircularFields } from '@/lib/ai'
@@ -262,9 +263,8 @@ const ApplicationForm = ({ application, onSave }: Props) => {
     ].map((reminder, i) => ({ id: `r${i + 1}`, enabled: true, ...reminder }))
 
   // A new application gets every field; an edit only the ones this form changes, so the rest
-  // (timeline, interview, documents, salary…) stays as it is
+  // (interview, documents, salary…) stays as it is
   const buildInput = (): ApplicationInput => {
-    const timestamp = new Date().toISOString()
     const common = {
       title: title.trim(),
       organization: organization.trim(),
@@ -273,46 +273,28 @@ const ApplicationForm = ({ application, onSave }: Props) => {
       deadline: hasDeadline ? deadline.toISOString() : null,
       reminders: buildReminders(),
     }
-    const firstEvent = (eventTitle: string, date = timestamp): TimelineEvent[] => [{ id: 't1', date, title: eventTitle }]
+    // The stage's dates and timeline, worked out the same way as the stage chips on the detail screen.
+    // The follow-up nudge is automatic (see lib/notifications), so the reminders are only the user's own
+    const moved = changeStage(application ?? { type }, stage, { sentAt: emailSent ? sentAt : undefined })
 
-    if (type === 'job') {
-      const applied = stage !== 'saved'
-      const appliedAt = application?.type === 'job' && application.appliedAt ? application.appliedAt : applied ? timestamp : null
-      const fields = { ...common, type: 'job' as const, stage: stage as JobStage, location: location.trim() || undefined, appliedAt }
-      if (isEditing) return fields as ApplicationInput
-      return { ...fields, interviewAt: null, timeline: firstEvent(applied ? 'Applied' : 'Saved circular') }
+    if (moved.type === 'job') {
+      const fields = { ...common, ...moved, location: location.trim() || undefined }
+      return isEditing ? fields : { ...fields, interviewAt: null }
     }
 
-    if (type === 'university') {
-      const submitted = stage !== 'preparing'
-      const submittedAt =
-        application?.type === 'university' && application.submittedAt ? application.submittedAt : submitted ? timestamp : null
-      const fields = {
-        ...common,
-        type: 'university' as const,
-        stage: stage as UniversityStage,
-        country: country.trim() || undefined,
-        intake: intake.trim() || undefined,
-        submittedAt,
-      }
+    if (moved.type === 'university') {
+      const fields = { ...common, ...moved, country: country.trim() || undefined, intake: intake.trim() || undefined }
       if (isEditing) return fields as ApplicationInput
-      return { ...fields, documents: [], timeline: firstEvent(submitted ? 'Submitted' : 'Started application') }
+      return { ...fields, documents: [] }
     }
 
-    const sentDate = emailSent ? sentAt.toISOString() : null
-    const fields = {
+    return {
       ...common,
-      type: 'professor' as const,
-      stage: stage as ProfessorStage,
+      ...moved,
       contactEmail: contactEmail.trim(),
       emailSubject: emailSubject.trim() || undefined,
       researchArea: researchArea.trim() || undefined,
-      sentAt: sentDate,
-      followUpAt: sentDate ? dayjs(sentDate).add(FOLLOW_UP_DAYS, 'day').toISOString() : null,
     }
-    if (isEditing) return fields as ApplicationInput
-    // The follow-up nudge is automatic (see lib/notifications), so the reminders are only the user's own
-    return { ...fields, repliedAt: null, timeline: sentDate ? firstEvent('First email sent', sentDate) : firstEvent('Draft created') }
   }
 
   const handleSave = async () => {

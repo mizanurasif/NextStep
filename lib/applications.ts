@@ -35,12 +35,8 @@ export const STAGE_TONE_CLASSES: Record<StageTone, { pill: string; text: string 
     positive: { pill: "bg-professor", text: "text-primary" },
 };
 
-// Every stage in the order an application moves through them
-export const STAGES_BY_TYPE: Record<ApplicationType, ApplicationStage[]> = {
-    job: ["saved", "applied", "interview", "offer", "rejected"],
-    university: ["preparing", "submitted", "under_review", "admitted", "rejected"],
-    professor: ["draft", "sent", "follow_up_due", "replied", "declined"],
-};
+// Stage order and the follow-up delay belong to stage changes; re-exported so existing imports keep working
+export { FOLLOW_UP_DAYS, STAGES_BY_TYPE } from "@/lib/stage-transition";
 
 // "On the day" reminders go off at this hour on the deadline's date
 export const ON_DAY_HOUR = 9;
@@ -75,9 +71,6 @@ export const getReminderPresets = (deadline: Date | string, now: Dayjs): Reminde
     // Drops "on the day" when the deadline is at or before 9 AM, and anything already too close
     return presets.filter((p) => p.minutesBefore > 0 && isValidReminderTime(end.subtract(p.minutesBefore, "minute"), end, now));
 };
-
-// How long to wait for a professor's reply before following up
-export const FOLLOW_UP_DAYS = 7;
 
 export type ApplicationFilter = "all" | ApplicationType;
 

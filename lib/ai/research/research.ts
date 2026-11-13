@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import { describeAiError, type AiKey, type AiProvider } from "@/lib/ai/providers";
-import { APPLICATION_TOOLS, applicationDetails, runApplicationTool } from "@/lib/ai/research/application-tools";
+import { alarmsSupported } from "@/lib/alarms";
+import { APPLICATION_TOOLS, applicationDetails, createApplicationTools, type ApplicationWrites } from "@/lib/ai/research/application-tools";
 import { INSTRUCTIONS } from "@/lib/ai/research/instructions";
 import type { Exchange, ModelAdapter, ModelSession, ToolCall, ToolOutput } from "@/lib/ai/research/model-turn";
 import { openaiAdapter } from "@/lib/ai/research/openai-adapter";
@@ -29,6 +30,9 @@ export type ResearchQuestion = {
     aiKey: AiKey;
     // The user's saved applications, as the app holds them right now
     applications: Application[];
+    // The app's own writes, for the tools that add an application, a note or a reminder
+    // (see application-tools.ts)
+    writes: ApplicationWrites;
     // The application the chat was opened from. Its details go with the first question only;
     // after that they're part of the chat
     application?: Application;
@@ -60,6 +64,12 @@ const ADAPTERS: Record<AiProvider, ModelAdapter> = { openai: openaiAdapter, clau
 const TOOL_STATUS: Record<string, string> = {
     list_applications: "Checking your applications…",
     read_applications: "Reading your saved applications…",
+    search_applications: "Searching your applications…",
+    get_agenda: "Checking what's coming up…",
+    create_application: "Saving a new application…",
+    add_note: "Adding a note…",
+    add_notification: "Setting a notification…",
+    add_alarm: "Setting an alarm…",
 };
 
 // ── The answer text ───────────────────────────────────────────────────────────────────────────────
@@ -140,9 +150,10 @@ export const createResearchChat = (adapters: Record<AiProvider, ModelAdapter> = 
     const memory: Exchange[] = [];
 
     return {
-        ask: async ({ question, aiKey, applications, application }, onEvent) => {
-            // The applications the agent read, shown as sources under the answer
+        ask: async ({ question, aiKey, applications, writes, application }, onEvent) => {
+            // The applications the agent read, created or changed, shown as sources under the answer
             const read = new Map<string, string>();
+            const tools = createApplicationTools({ applications, writes, alarmsSupported });
 
             // When the chat is opened from an application, its details go with the first question, so
             // the AI knows what "this job" means without a tool call
@@ -151,12 +162,13 @@ export const createResearchChat = (adapters: Record<AiProvider, ModelAdapter> = 
             const context = opened
                 ? `\n\nThe user opened this chat from one of their saved applications:\n<application>\n${applicationDetails(opened)}\n</application>`
                 : "";
-            const today = dayjs().format("YYYY-MM-DD"); // in the phone's time zone
-            const fullQuestion = `Today is ${today}.${context}\n\n${question.trim()}`;
+            // The phone's date, time and time zone, so "tomorrow at 9 PM" can become an exact time
+            const now = dayjs();
+            const fullQuestion = `Now: ${now.format("YYYY-MM-DD HH:mm")} (UTC${now.format("Z")}).${context}\n\n${question.trim()}`;
 
             const runTool = ({ id, name, input }: ToolCall): ToolOutput => {
                 onEvent({ type: "status", text: TOOL_STATUS[name] ?? "Working…" });
-                const result = runApplicationTool(applications, name, input);
+                const result = tools.run(name, input);
                 for (const application of result.read) read.set(application.id, application.title);
                 return { id, content: result.content, isError: result.isError };
             };

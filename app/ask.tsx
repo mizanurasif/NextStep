@@ -26,11 +26,27 @@ type Message = {
   isError?: boolean
 }
 
-const SUGGESTIONS: Record<ApplicationType | 'all', string[]> = {
-  all: ['Which of my jobs need React Native?', 'Which applications close this month?', 'What do my interview companies usually ask?'],
-  job: ['What did they ask in past interviews?', 'What do candidates say about the process?', 'Summarize the requirements'],
-  university: ['Deadline, fee and fee waiver?', 'IELTS, TOEFL and GRE requirements?', 'What funding is there?'],
-  professor: ['What are they researching now?', 'What are their recent papers?', 'Are they taking new students?'],
+// Room for a long question or a pasted paragraph (about 500 tokens); every question is sent again with
+// the next few, so it's still capped to keep the cost of a chat predictable
+const MAX_QUESTION_CHARS = 2000
+
+// The chips shown before the first question, one per thing the agent can do on the user's tracker.
+// A complete question is sent straight away; one that needs details (which application, what note,
+// when) is put in the text box for the user to finish
+type Suggestion = { label: string; prompt: string; sendNow: boolean }
+
+const SUGGESTIONS: Record<'all' | 'scoped', Suggestion[]> = {
+  all: [
+    { label: "What's due this week?", prompt: "What's due this week?", sendNow: true },
+    { label: 'Add a note', prompt: 'Add a note to ', sendNow: false },
+    { label: 'Set a notification or alarm', prompt: 'Remind me about ', sendNow: false },
+  ],
+  // Opened from one application, so "this" is clear
+  scoped: [
+    { label: "What's coming up for this?", prompt: "What's coming up for this application?", sendNow: true },
+    { label: 'Add a note', prompt: 'Add a note: ', sendNow: false },
+    { label: 'Set a notification or alarm', prompt: 'Remind me ', sendNow: false },
+  ],
 }
 
 // Chat with the research agent: it reads the user's saved applications and searches the web, using the
@@ -40,12 +56,13 @@ const Ask = () => {
   const router = useRouter()
   const { applicationId } = useLocalSearchParams<{ applicationId?: string }>()
   const { user, initializing } = useAuth()
-  const { applications } = useApplications()
+  const { applications, addApplication, updateApplication } = useApplications()
   const { research, askResearch } = useAiAccess()
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
   const [isThinking, setIsThinking] = useState(false)
   const listRef = useRef<FlatList<Message>>(null)
+  const inputRef = useRef<TextInput>(null)
   // The research chat; it remembers the earlier questions and answers itself
   const [chat, setChat] = useState(createResearchChat)
   // Numbers each question and answer, for their list keys
@@ -75,7 +92,13 @@ const Ask = () => {
     try {
       await askResearch(
         chat,
-        { question, applications, application: scoped },
+        {
+          question,
+          applications,
+          // The agent can add an application, a note or a reminder when asked, through the same store as the screens
+          writes: { addApplication, updateApplication },
+          application: scoped,
+        },
         (event) => {
           switch (event.type) {
             case 'status':
@@ -99,6 +122,12 @@ const Ask = () => {
     } finally {
       setIsThinking(false)
     }
+  }
+
+  // Puts the start of a question in the text box and opens the keyboard, for the user to finish
+  const startDraft = (prompt: string) => {
+    setDraft(prompt)
+    inputRef.current?.focus()
   }
 
   // Forgets the earlier questions, so the next one starts fresh
@@ -145,13 +174,18 @@ const Ask = () => {
             <View className="gap-3">
               <Text className="auth-helper">
                 {research.allowed
-                  ? 'Ask about your saved applications, or research interview questions, professors and admissions on the web. Every answer lists its sources.'
+                  ? "Ask what's due, save notes, set notifications and alarms, add applications, or research interview questions, professors and admissions on the web. Every answer lists its sources."
                   : research.reason}
               </Text>
               <View className="reminder-row">
-                {SUGGESTIONS[scoped?.type ?? 'all'].map((suggestion) => (
-                  <Pressable key={suggestion} className="reminder-chip" onPress={() => send(suggestion)} accessibilityRole="button">
-                    <Text className="reminder-chip-text">{suggestion}</Text>
+                {SUGGESTIONS[scoped ? 'scoped' : 'all'].map((suggestion) => (
+                  <Pressable
+                    key={suggestion.label}
+                    className="reminder-chip"
+                    onPress={() => (suggestion.sendNow ? send(suggestion.prompt) : startDraft(suggestion.prompt))}
+                    accessibilityRole="button"
+                  >
+                    <Text className="reminder-chip-text">{suggestion.label}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -200,13 +234,14 @@ const Ask = () => {
 
         <View className="form-footer flex-row items-end gap-2">
           <TextInput
+            ref={inputRef}
             className="auth-input max-h-32 flex-1"
             value={draft}
             onChangeText={setDraft}
             placeholder={scoped ? 'Ask about this application' : 'Ask or research anything'}
             placeholderTextColor={colors.mutedForeground}
             multiline
-            maxLength={500}
+            maxLength={MAX_QUESTION_CHARS}
             textAlignVertical="top"
           />
           <Pressable

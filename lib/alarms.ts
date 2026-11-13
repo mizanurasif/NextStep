@@ -1,9 +1,11 @@
 import { Alert, Linking, Platform, TurboModuleRegistry } from "react-native";
 import type NotifeeModule from "react-native-notify-kit";
 import type { Event, Notification } from "react-native-notify-kit";
+import type { ReminderDelivery } from "@/lib/reminder-plan";
 
 // Real ringing alarms (looping sound, Stop / Snooze buttons, full-screen when allowed) are Android only:
-// iOS has no API for that, so there an alarm reminder stays a loud expo-notifications notification
+// iOS has no API for that, so there an alarm reminder stays a loud expo-notifications notification.
+// Which reminders ring is decided in lib/reminder-plan; alarmDelivery below only hands them to the phone
 
 // Loaded only when its native code is in the build: Expo Go and builds made before the library
 // was added don't have it, and there the JS loads fine but every call throws.
@@ -40,14 +42,6 @@ export const SNOOZE_MINUTES = 5;
 // Stop ringing on its own after 10 minutes, like a clock alarm
 const RING_FOR_MS = 10 * 60_000;
 
-export type AlarmInput = {
-    identifier: string;
-    date: Date;
-    title: string;
-    body: string;
-    applicationId: string;
-};
-
 const isAlarmId = (id?: string) => !!id && (id.startsWith(ALARM_PREFIX) || id.startsWith(SNOOZE_PREFIX));
 
 const createChannel = async () => {
@@ -65,12 +59,13 @@ const createChannel = async () => {
 };
 
 // The notification that rings: loops its sound, can't be swiped away, wakes the screen,
-// and asks Android to open the app full-screen
+// and asks Android to open the app full-screen.
+// `data.title` keeps the plain title, so the alarm screen and snooze never have to strip the ⏰
 const buildNotification = (id: string, title: string, body: string, applicationId: string): Notification => ({
     id,
     title: `⏰ ${title}`,
     body,
-    data: { applicationId },
+    data: { applicationId, title },
     android: {
         channelId: CHANNEL_ID,
         category: kit!.AndroidCategory.ALARM,
@@ -98,24 +93,37 @@ const scheduleAt = async (notification: Notification, date: Date) => {
     });
 };
 
-// Makes the scheduled alarms match exactly; snoozed alarms are left alone so they still ring
-export const syncAlarms = async (alarms: AlarmInput[]) => {
-    if (!notifee) return;
-    await createChannel();
-    const scheduled = await notifee.getTriggerNotificationIds();
-    const stale = scheduled.filter((id) => id.startsWith(ALARM_PREFIX));
-    if (stale.length) await notifee.cancelTriggerNotifications(stale);
+// The alarm adapter (see ReminderDelivery in lib/reminder-plan): cancels the alarms it scheduled
+// before, then schedules exactly `reminders` as ringing alarms.
+// Snoozed alarms are left alone so they still ring. Does nothing where alarms aren't supported
+export const alarmDelivery: ReminderDelivery = {
+    replaceAll: async (reminders) => {
+        if (!notifee) return;
+        await createChannel();
+        const scheduled = await notifee.getTriggerNotificationIds();
+        const stale = scheduled.filter((id) => id.startsWith(ALARM_PREFIX));
+        if (stale.length) await notifee.cancelTriggerNotifications(stale);
 
-    for (const alarm of alarms) {
-        try {
-            await scheduleAt(
-                buildNotification(`${ALARM_PREFIX}${alarm.identifier}`, alarm.title, alarm.body, alarm.applicationId),
-                alarm.date,
-            );
-        } catch (error) {
-            console.warn("Could not schedule alarm", alarm.identifier, error);
+        for (const reminder of reminders) {
+            // One bad alarm shouldn't stop the rest from being scheduled
+            try {
+                await scheduleAt(
+                    buildNotification(`${ALARM_PREFIX}${reminder.id}`, reminder.title, reminder.body, reminder.applicationId),
+                    reminder.date,
+                );
+            } catch (error) {
+                console.warn("Could not schedule alarm", reminder.id, error);
+            }
         }
-    }
+    },
+};
+
+// The alarm's title without the ⏰. Alarms scheduled by an older build have no data.title,
+// so for those the emoji is stripped from the shown title
+export const getAlarmTitle = (notification: Notification) => {
+    const plain = notification.data?.title;
+    if (typeof plain === "string") return plain;
+    return (notification.title ?? "").replace(/^⏰ /, "");
 };
 
 export const stopAlarm = async (id: string) => {
@@ -128,7 +136,7 @@ export const snoozeAlarm = async (notification: Notification) => {
     if (!notifee || !notification.id) return;
     await notifee.cancelNotification(notification.id);
     const original = notification.id.replace(SNOOZE_PREFIX, "").replace(ALARM_PREFIX, "");
-    const title = (notification.title ?? "").replace(/^⏰ /, "");
+    const title = getAlarmTitle(notification);
     const applicationId = String(notification.data?.applicationId ?? "");
     await scheduleAt(
         buildNotification(`${SNOOZE_PREFIX}${original}`, title, notification.body ?? "", applicationId),

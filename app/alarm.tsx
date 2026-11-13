@@ -5,7 +5,7 @@ import { styled } from 'nativewind'
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context'
 import dayjs from 'dayjs'
 import type { Notification } from 'react-native-notify-kit'
-import { SNOOZE_MINUTES, getAlarm, snoozeAlarm, stopAlarm } from '@/lib/alarms'
+import { SNOOZE_MINUTES, getAlarm, getAlarmTitle, snoozeAlarm, stopAlarm } from '@/lib/alarms'
 
 const SafeAreaView = styled(RNSafeAreaView)
 
@@ -61,7 +61,7 @@ const AlarmScreen = () => {
       <View className="items-center gap-3">
         <Text className="text-6xl">⏰</Text>
         <Text className="text-center text-2xl font-sans-bold text-background" accessibilityRole="header">
-          {alarm?.title?.replace(/^⏰ /, '') ?? 'Alarm'}
+          {(alarm && getAlarmTitle(alarm)) || 'Alarm'}
         </Text>
         {alarm?.body ? <Text className="text-center text-base font-sans-medium text-background/80">{alarm.body}</Text> : null}
         <Pressable onPress={openApplication} accessibilityRole="link" hitSlop={8}>

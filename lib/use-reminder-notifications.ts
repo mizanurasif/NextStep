@@ -4,12 +4,8 @@ import { router } from "expo-router";
 import { alarmsSupported, getRingingAlarm, subscribeToAlarms } from "@/lib/alarms";
 import { useAuth } from "@/lib/auth-context";
 import { useApplications } from "@/lib/applications-store";
-import {
-    ensureNotificationPermission,
-    notificationsSupported,
-    subscribeToReminderTaps,
-    syncReminderNotifications,
-} from "@/lib/notifications";
+import { ensureNotificationPermission, notificationsSupported, subscribeToReminderTaps } from "@/lib/notifications";
+import { syncReminders } from "@/lib/reminder-sync";
 
 // Keeps the phone's scheduled reminders in sync with the live applications list
 // and opens the right screen when a reminder is tapped
@@ -28,8 +24,8 @@ export const useReminderNotifications = () => {
     useEffect(() => {
         if (!notificationsSupported || loading) return;
         // An empty list cancels everything, so a signed-out phone keeps no one's reminders
-        if (!user) syncReminderNotifications([]);
-        else if (permitted) syncReminderNotifications(applications);
+        if (!user) syncReminders([]);
+        else if (permitted) syncReminders(applications);
     }, [user, applications, loading, permitted]);
 
     // Opens the application a reminder is about

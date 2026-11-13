@@ -2,11 +2,14 @@ import { View, Text, Image } from 'react-native'
 import clsx from 'clsx'
 import dayjs, { type Dayjs } from 'dayjs'
 import { colors } from '@/constants/theme'
-import { TYPE_META, formatDaysAgo, getWaitingSince, needsFollowUp, type AwaitingReply } from '@/lib/applications'
+import { TYPE_META, formatDaysAgo, type AwaitingReply } from '@/lib/applications'
+import { getStatus } from '@/lib/status'
 
-// What the row says about where things stand, and whether it needs attention
-const getStatus = (item: AwaitingReply, now: Dayjs) => {
-  const since = getWaitingSince(item)
+// What the row says about where things stand, and whether it needs attention.
+// The facts (when it was sent, whether a follow-up is due) come from lib/status
+const describeRow = (item: AwaitingReply, now: Dayjs) => {
+  const status = getStatus(item, now)
+  const since = status.sentAt
 
   if (item.type === 'job') {
     if (item.stage === 'interview') {
@@ -27,7 +30,7 @@ const getStatus = (item: AwaitingReply, now: Dayjs) => {
     }
   }
 
-  const followUp = needsFollowUp(item, now)
+  const followUp = status.followUpDue
   return {
     pill: followUp ? 'Follow up' : 'Waiting',
     urgent: followUp,
@@ -37,7 +40,7 @@ const getStatus = (item: AwaitingReply, now: Dayjs) => {
 
 const AwaitingReplyRow = ({ item, now }: { item: AwaitingReply; now: Dayjs }) => {
   const meta = TYPE_META[item.type]
-  const status = getStatus(item, now)
+  const status = describeRow(item, now)
   // "Machine Learning Lab · University of Alberta" → "Machine Learning Lab"
   const organization = item.organization.split('·')[0].trim()
 

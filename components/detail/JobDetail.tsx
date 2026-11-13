@@ -13,7 +13,7 @@ import {
   SectionTitle,
   StageStepper,
   Timeline,
-  countdownBadge,
+  getKeyDateCard,
 } from '@/components/detail/DetailParts'
 
 const EMPLOYMENT_LABELS: Record<NonNullable<JobApplication['employmentType']>, string> = {
@@ -31,26 +31,9 @@ const WORK_MODE_LABELS: Record<NonNullable<JobApplication['workMode']>, string> 
 
 const FULL_DATE = 'ddd, MMM D · h:mm A'
 
-// The one date that matters most right now for this job
-const getKeyDate = (job: JobApplication, now: Dayjs) => {
-  if (job.stage === 'interview' && job.interviewAt) {
-    return { label: 'Interview', value: dayjs(job.interviewAt).format(FULL_DATE), badge: countdownBadge(job.interviewAt, now, 'to go', 'ago') }
-  }
-  if ((job.stage === 'applied' || job.stage === 'interview') && job.appliedAt) {
-    return { label: 'Applied on', value: dayjs(job.appliedAt).format(FULL_DATE), badge: countdownBadge(job.appliedAt, now, 'left', 'ago') }
-  }
-  if (job.stage === 'rejected') {
-    return { label: 'Outcome', value: 'Not selected this time' }
-  }
-  if (job.deadline) {
-    const label = job.stage === 'offer' ? 'Reply to the offer by' : 'Application deadline'
-    return { label, value: dayjs(job.deadline).format(FULL_DATE), badge: countdownBadge(job.deadline, now, 'left', 'ago') }
-  }
-  return null
-}
-
 const JobDetail = ({ job, now }: { job: JobApplication; now: Dayjs }) => {
-  const keyDate = getKeyDate(job, now)
+  // The one date that matters most right now (interview, applied on, deadline…), from lib/status
+  const keyDate = getKeyDateCard(job, now)
   const subtitle = [job.organization, job.location, job.employmentType && EMPLOYMENT_LABELS[job.employmentType]]
     .filter(Boolean)
     .join(' · ')

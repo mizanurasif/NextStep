@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
-import { CLOSED_STAGES, formatTimeDistance, hasLiveDeadline } from "@/lib/applications";
+import { formatTimeDistance } from "@/lib/applications";
 import { getFireTime } from "@/lib/reminders";
+import { getStatus } from "@/lib/status";
 
 // =====================================================================================
 // Reminder plan: decides WHAT should go off on this phone, WHEN, and HOW it's delivered.
@@ -76,19 +77,18 @@ export const listReminders = (applications: Application[], now: Date): PlannedRe
             list.push({ id: `${application.id}:${key}`, applicationId: application.id, date, title, body: text, alarm });
         };
 
-        // Follow-up: only while the email is sent and no reply has come yet
-        if (
-            application.type === "professor" &&
-            (application.stage === "sent" || application.stage === "follow_up_due") &&
-            application.followUpAt
-        ) {
-            add("follow-up", new Date(application.followUpAt), "Time to follow up");
-        }
+        // Which dates still matter is decided in lib/status
+        const status = getStatus(application, dayjs(now));
 
-        // A deadline that no longer matters (already applied, rejected…) silences its reminders too
-        const deadline = hasLiveDeadline(application) ? application.deadline : null;
+        // Follow-up: the status only has one while the email is sent and no reply has come yet
+        const followUp = status.events.find((event) => event.kind === "follow_up");
+        if (followUp) add("follow-up", new Date(followUp.date), "Time to follow up");
+
+        // A deadline that no longer matters (already applied, rejected…) silences its reminders too,
+        // and so does a finished application
+        const deadline = status.liveDeadline;
         if (application.deadline && !deadline) continue;
-        if (CLOSED_STAGES.includes(application.stage)) continue;
+        if (status.phase === "closed") continue;
 
         if (deadline) {
             add("deadline", new Date(deadline), "Time is over", false, `The deadline for ${body} has passed`);

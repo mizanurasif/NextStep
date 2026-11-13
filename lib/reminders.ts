@@ -99,7 +99,7 @@ export const isValidReminderTime = (time: DateInput, deadline: DateInput | null,
 //   - any other reminder counts back `minutesBefore` from the deadline, so it needs one
 //   - an old 0-minute reminder ("at the deadline") gives null: the "Time is over" notification covers it
 //
-// Notifications pass only a deadline that still matters (see hasLiveDeadline), so a reminder for a
+// Notifications pass only a deadline that still matters (status.liveDeadline from lib/status), so a reminder for a
 // job you've already applied to doesn't fire.
 //
 // Example: { minutesBefore: 4320 } with deadline Nov 20, 11:59 PM → Nov 17, 11:59 PM

@@ -6,7 +6,18 @@ import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context'
 import clsx from 'clsx'
 import dayjs from 'dayjs'
 import { colors } from '@/constants/theme'
-import { STAGE_META, TYPE_META, getReminderPresets, isValidReminderTime } from '@/lib/applications'
+import { STAGE_META, TYPE_META } from '@/lib/applications'
+import {
+  canAddCustomTime,
+  choicesToReminders,
+  formatReminderTime,
+  getCustomTimeError,
+  getCustomTimesError,
+  getReminderPresets,
+  listPickedReminders,
+  remindersToChoices,
+  suggestCustomTime,
+} from '@/lib/reminders'
 import { FOLLOW_UP_DAYS, STAGES_BY_TYPE, changeStage } from '@/lib/stage-transition'
 import DateTimeField from '@/components/DateTimeField'
 import { ensureAlarmPermissions } from '@/lib/alarms'
@@ -30,11 +41,6 @@ const COPY: Record<ApplicationType, { title: string; titlePlaceholder: string; o
   professor: { title: 'Professor', titlePlaceholder: 'e.g. Dr. Sarah Lin', org: 'Lab · University', orgPlaceholder: 'e.g. ML Lab · University of Alberta', link: 'Profile page' },
 }
 
-const CUSTOM_FORMAT = 'MMM D, h:mm A'
-
-// Preset reminders are stored as plain minutes before the deadline; these turn them back into chips
-const PRESET_KEY_BY_MINUTES: Record<number, string> = { 10080: 'week', 4320: '3days', 60: 'hour' }
-
 // Adds https:// when someone types "example.com/jobs"
 const normalizeLink = (link: string) => {
   const trimmed = link.trim()
@@ -43,38 +49,6 @@ const normalizeLink = (link: string) => {
 }
 
 const defaultDeadline = () => dayjs().add(7, 'day').hour(23).minute(59).second(0).millisecond(0).toDate()
-
-const customKey = (time: Date) => `custom-${time.getTime()}`
-
-// Turns saved reminders back into the form's chips. Reminders that already went off are dropped,
-// and older ones that don't match a chip become custom times
-const remindersToState = (application?: Application) => {
-  const presetKeys: string[] = []
-  const customTimes: Date[] = []
-  const alarmKeys: string[] = []
-  if (!application) return { presetKeys, customTimes, alarmKeys }
-
-  const earliest = dayjs().add(1, 'minute')
-  for (const reminder of application.reminders) {
-    if (!reminder.enabled) continue
-    const presetKey = reminder.kind === 'on_day' ? 'on_day' : !reminder.kind ? PRESET_KEY_BY_MINUTES[reminder.minutesBefore] : undefined
-    if (presetKey && application.deadline) {
-      presetKeys.push(presetKey)
-      if (reminder.alarm) alarmKeys.push(presetKey)
-      continue
-    }
-    const time = reminder.at
-      ? dayjs(reminder.at)
-      : application.deadline && reminder.minutesBefore > 0
-        ? dayjs(application.deadline).subtract(reminder.minutesBefore, 'minute')
-        : null
-    if (!time || time.isBefore(earliest)) continue
-    const date = time.second(0).millisecond(0).toDate()
-    customTimes.push(date)
-    if (reminder.alarm) alarmKeys.push(customKey(date))
-  }
-  return { presetKeys, customTimes: customTimes.sort((a, b) => a.getTime() - b.getTime()), alarmKeys }
-}
 
 const Field = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
   <View className="auth-field">
@@ -95,7 +69,10 @@ type Props = {
 const ApplicationForm = ({ application, onSave }: Props) => {
   const router = useRouter()
   const isEditing = !!application
-  const [initialReminders] = useState(() => remindersToState(application))
+  // The saved reminders as chips, worked out once when the form opens (see lib/reminders)
+  const [initialReminders] = useState(() =>
+    remindersToChoices(application?.reminders ?? [], application?.deadline ?? null, dayjs()),
+  )
 
   const [type, setType] = useState<ApplicationType>(application?.type ?? 'job')
   const [stage, setStage] = useState<ApplicationStage>(application?.stage ?? 'saved')
@@ -152,23 +129,19 @@ const ApplicationForm = ({ application, onSave }: Props) => {
   const now = dayjs()
   // Without a deadline, reminders are only limited by the current time
   const deadlineDay = hasDeadline ? dayjs(deadline) : null
-  // The choices follow the deadline: a far deadline offers 1 week / 3 days / on the day, a close one just 1 hour.
-  // Without a deadline there's nothing to count back from, so only custom times are offered
-  const presets = hasDeadline ? getReminderPresets(deadline, now) : []
-  const isValidTime = (time: Date) => isValidReminderTime(dayjs(time), deadlineDay, now)
-  const draftError =
-    customDraft && !isValidTime(customDraft)
-      ? hasDeadline ? 'Pick a time at least 1 minute from now and before the deadline' : 'Pick a time at least 1 minute from now'
-      : ''
+  // The reminder chips, all ruled by lib/reminders. The presets follow the deadline: a far one offers
+  // 1 week / 3 days / on the day, a close one just 1 hour. Without a deadline there's nothing to count
+  // back from, so only custom times are offered
+  const reminderChoices = { presetKeys, customTimes, alarmKeys }
+  const presets = deadlineDay ? getReminderPresets(deadlineDay, now) : []
+  const pickedReminders = listPickedReminders(reminderChoices, presets)
+  const draftError = customDraft ? getCustomTimeError(customDraft, deadlineDay, now) : ''
 
   const errors = {
     title: title.trim() ? '' : `Enter the ${copy.title.toLowerCase()}`,
     organization: organization.trim() ? '' : `Enter the ${copy.org.split(' ')[0].toLowerCase()}`,
     contactEmail: !isProfessor || contactEmail.trim().includes('@') ? '' : 'Enter a valid email address',
-    // Custom times can fall behind if the form stays open or the deadline moves
-    reminders: customTimes.some((time) => !isValidTime(time))
-      ? `Remove reminders that are in the past${hasDeadline ? ' or after the deadline' : ''}`
-      : '',
+    reminders: getCustomTimesError(customTimes, deadlineDay, now),
   }
   const isValid = !errors.title && !errors.organization && !errors.contactEmail && !errors.reminders
 
@@ -223,44 +196,14 @@ const ApplicationForm = ({ application, onSave }: Props) => {
     setAlarmKeys((current) => (on ? [...current.filter((k) => k !== key), key] : current.filter((k) => k !== key)))
   }
 
-  // Every picked reminder, in the order shown, so each can choose notification or alarm
-  const pickedReminders = [
-    ...presets.filter((preset) => presetKeys.includes(preset.key)).map((preset) => ({ key: preset.key, label: preset.label })),
-    ...customTimes.map((time) => ({ key: customKey(time), label: dayjs(time).format(CUSTOM_FORMAT) })),
-  ]
-
-  // Starts the picker an hour before the deadline (or an hour from now without one),
-  // or a few minutes from now when that's too close
-  const startCustom = () => {
-    const suggested = (deadlineDay ? deadlineDay.subtract(1, 'hour') : now.add(1, 'hour')).second(0).millisecond(0)
-    setCustomDraft((isValidTime(suggested.toDate()) ? suggested : now.add(5, 'minute').second(0).millisecond(0)).toDate())
-  }
+  // Opens the time picker at a sensible starting time
+  const startCustom = () => setCustomDraft(suggestCustomTime(deadlineDay, now))
 
   const addCustom = () => {
     if (!customDraft || draftError) return
     setCustomTimes((current) => [...current, customDraft].sort((a, b) => a.getTime() - b.getTime()))
     setCustomDraft(null)
   }
-
-  // Presets that no longer fit the deadline are dropped; `kind` and `alarm` are only set when needed,
-  // since Firebase rejects undefined values
-  const buildReminders = (): Reminder[] =>
-    [
-      ...presets
-        .filter((preset) => presetKeys.includes(preset.key))
-        .map((preset) => ({
-          minutesBefore: preset.minutesBefore,
-          ...(preset.kind && { kind: preset.kind }),
-          ...(alarmKeys.includes(preset.key) && { alarm: true }),
-        })),
-      // `at` keeps the exact time, which is all there is when there's no deadline
-      ...customTimes.map((time) => ({
-        minutesBefore: deadlineDay ? deadlineDay.diff(time, 'minute') : 0,
-        kind: 'custom' as const,
-        at: time.toISOString(),
-        ...(alarmKeys.includes(customKey(time)) && { alarm: true }),
-      })),
-    ].map((reminder, i) => ({ id: `r${i + 1}`, enabled: true, ...reminder }))
 
   // A new application gets every field; an edit only the ones this form changes, so the rest
   // (interview, documents, salary…) stays as it is
@@ -271,7 +214,7 @@ const ApplicationForm = ({ application, onSave }: Props) => {
       link: normalizeLink(link),
       notes: notes.trim() || undefined,
       deadline: hasDeadline ? deadline.toISOString() : null,
-      reminders: buildReminders(),
+      reminders: choicesToReminders(reminderChoices, deadlineDay, now),
     }
     // The stage's dates and timeline, worked out the same way as the stage chips on the detail screen.
     // The follow-up nudge is automatic (see lib/notifications), so the reminders are only the user's own
@@ -557,12 +500,12 @@ const ApplicationForm = ({ application, onSave }: Props) => {
                   className="reminder-chip reminder-chip-on"
                   onPress={() => setCustomTimes((current) => current.filter((t) => t !== time))}
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove reminder at ${dayjs(time).format(CUSTOM_FORMAT)}`}
+                  accessibilityLabel={`Remove reminder at ${formatReminderTime(time)}`}
                 >
-                  <Text className="reminder-chip-text">{dayjs(time).format(CUSTOM_FORMAT)}  ✕</Text>
+                  <Text className="reminder-chip-text">{formatReminderTime(time)}  ✕</Text>
                 </Pressable>
               ))}
-              {!customDraft && (!deadlineDay || deadlineDay.isAfter(now.add(1, 'minute'))) && (
+              {!customDraft && canAddCustomTime(deadlineDay, now) && (
                 <Pressable className="reminder-chip" onPress={startCustom} accessibilityRole="button">
                   <Text className="reminder-chip-text">+ Custom</Text>
                 </Pressable>

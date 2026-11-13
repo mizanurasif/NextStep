@@ -3,6 +3,7 @@ import type * as NotificationsModule from "expo-notifications";
 import dayjs from "dayjs";
 import { CLOSED_STAGES, formatTimeDistance, hasLiveDeadline } from "@/lib/applications";
 import { alarmsSupported, syncAlarms } from "@/lib/alarms";
+import { getFireTime } from "@/lib/reminders";
 
 // Android groups notifications into channels; the user can mute each one in system settings
 const CHANNEL_ID = "reminders";
@@ -86,19 +87,14 @@ export const getReminderNotifications = (applications: Application[], now = new 
         for (const reminder of application.reminders) {
             if (!reminder.enabled) continue;
 
-            if (!deadline) {
-                // Nothing to count back from: only custom reminders, which keep their exact time
-                if (reminder.at) add(reminder.id, new Date(reminder.at), "Reminder", !!reminder.alarm);
-                continue;
-            }
+            // When it rings is decided in lib/reminders; null means it can't ring
+            // (no deadline to count back from, or an old 0-minute one that "Time is over" covers)
+            const date = getFireTime(reminder, deadline);
+            if (!date) continue;
 
-            // Older 0-minute reminders meant "at the deadline", which "Time is over" now covers
-            if (!reminder.at && reminder.minutesBefore === 0) continue;
-            const date = reminder.at ? new Date(reminder.at) : new Date(new Date(deadline).getTime() - reminder.minutesBefore * 60_000);
-            const title =
-                reminder.kind === "on_day"
-                    ? `Due today at ${dayjs(deadline).format("h:mm A")}`
-                    : `Due in ${formatTimeDistance(deadline, dayjs(date))}`;
+            let title = "Reminder";
+            if (deadline && reminder.kind === "on_day") title = `Due today at ${dayjs(deadline).format("h:mm A")}`;
+            else if (deadline) title = `Due in ${formatTimeDistance(deadline, dayjs(date))}`;
             add(reminder.id, date, title, !!reminder.alarm);
         }
     }

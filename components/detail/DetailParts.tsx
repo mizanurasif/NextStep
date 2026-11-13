@@ -7,7 +7,8 @@ import clsx from 'clsx'
 import dayjs, { type Dayjs } from 'dayjs'
 import { colors } from '@/constants/theme'
 import { icons } from '@/constants/icons'
-import { TYPE_META, formatReminder, getSteps, getTimeDistance } from '@/lib/applications'
+import { TYPE_META, getSteps, getTimeDistance } from '@/lib/applications'
+import { formatReminder } from '@/lib/reminders'
 
 // Alert buttons do nothing on web, so fall back to the browser's confirm dialog there
 const confirmDelete = (title: string, onConfirm: () => void) => {

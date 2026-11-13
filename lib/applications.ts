@@ -38,39 +38,7 @@ export const STAGE_TONE_CLASSES: Record<StageTone, { pill: string; text: string 
 // Stage order and the follow-up delay belong to stage changes; re-exported so existing imports keep working
 export { FOLLOW_UP_DAYS, STAGES_BY_TYPE } from "@/lib/stage-transition";
 
-// "On the day" reminders go off at this hour on the deadline's date
-export const ON_DAY_HOUR = 9;
-
-export type ReminderPreset = { key: string; label: string; minutesBefore: number; kind?: "on_day" };
-
-// A reminder has to be at least a minute from now, and before the deadline when there is one
-export const isValidReminderTime = (time: Dayjs, deadline: Dayjs | null, now: Dayjs) =>
-    !time.isBefore(now.add(1, "minute")) && (!deadline || time.isBefore(deadline));
-
-// The preset reminders that fit how far away the deadline is:
-//   over a week -> 1 week, 3 days, on the day; under a week -> 3 days, on the day;
-//   under 3 days -> on the day; under a day -> 1 hour
-export const getReminderPresets = (deadline: Date | string, now: Dayjs): ReminderPreset[] => {
-    const end = dayjs(deadline);
-    const minutesLeft = end.diff(now, "minute");
-    const week = { key: "week", label: "1 week before", minutesBefore: 10080 };
-    const threeDays = { key: "3days", label: "3 days before", minutesBefore: 4320 };
-    const onDay = {
-        key: "on_day",
-        label: `On the day · ${ON_DAY_HOUR} AM`,
-        minutesBefore: end.diff(end.startOf("day").hour(ON_DAY_HOUR), "minute"),
-        kind: "on_day" as const,
-    };
-    const hour = { key: "hour", label: "1 hour before", minutesBefore: 60 };
-
-    const presets =
-        minutesLeft >= 7 * 1440 ? [week, threeDays, onDay]
-        : minutesLeft >= 3 * 1440 ? [threeDays, onDay]
-        : minutesLeft >= 1440 ? [onDay]
-        : [hour];
-    // Drops "on the day" when the deadline is at or before 9 AM, and anything already too close
-    return presets.filter((p) => p.minutesBefore > 0 && isValidReminderTime(end.subtract(p.minutesBefore, "minute"), end, now));
-};
+// Reminder presets, fire times and labels live in lib/reminders
 
 export type ApplicationFilter = "all" | ApplicationType;
 
@@ -263,21 +231,6 @@ export const findApplication = (applications: Application[], id: string) => appl
 // Professors whose email is about this university application
 export const getLinkedProfessors = (applications: Application[], universityId: string) =>
     applications.filter((a): a is ProfessorApplication => a.type === "professor" && a.linkedApplicationId === universityId);
-
-// `anchor` is the deadline (or follow-up date) the reminder counts back from
-export const formatReminder = ({ minutesBefore, kind, at }: Reminder, anchor?: string | null) => {
-    if (kind === "on_day") return `On the day · ${ON_DAY_HOUR} AM`;
-    if (kind === "custom" && at) return dayjs(at).format("MMM D, h:mm A");
-    if (kind === "custom" && anchor) return dayjs(anchor).subtract(minutesBefore, "minute").format("MMM D, h:mm A");
-    if (minutesBefore === 0) return "On the day";
-    if (minutesBefore === 10080) return "1 week before";
-    if (minutesBefore % 1440 === 0) {
-        const days = minutesBefore / 1440;
-        return days === 1 ? "1 day before" : `${days} days before`;
-    }
-    const hours = Math.round(minutesBefore / 60);
-    return hours === 1 ? "1 hour before" : `${hours} hours before`;
-};
 
 export type StepState = "done" | "current" | "todo" | "failed";
 

@@ -27,17 +27,34 @@ const Applications = () => {
 
   const now = dayjs()
   const summary = getWeekSummary(applications, now)
-  const countFor = (key: ApplicationFilter) =>
-    key === 'all' ? applications.length : applications.filter((a) => a.type === key).length
-
-  const visible = sortApplications(
+  const countFor = (key: ApplicationFilter) => {
+    const searchapplications = query === '' ? applications : applications.filter((a) => (matchesSearch(a, query)))
+    return key === 'all' ?  searchapplications.length  :  searchapplications.filter((a) => a.type === key).length
+  }
+  const searachedApplications = sortApplications(
     applications.filter((a) => (filter === 'all' || a.type === filter) && matchesSearch(a, query)),
     now,
   )
 
-  const emptyMessage = query.trim()
-    ? `Nothing matches "${query.trim()}"`
-    : 'No applications here yet'
+  // What to say when the list is empty, based on the search text and the selected filter:
+  //   all,  no search  → No applications here yet
+  //   all,  search     → Nothing matches "google"
+  //   Jobs, no search  → No applications in Jobs
+  //   Jobs, search     → Nothing matches "google" in Jobs
+  const getEmptyMessage = () => {
+    const search = query.trim()
+    const filterLabel = APPLICATION_FILTERS.find((option) => option.key === filter)?.label
+
+    if (filter === 'all') {
+      if (search) return `Nothing matches "${search}"`
+      return 'No applications here yet'
+    }
+
+    if (search) return `Nothing matches "${search}" in ${filterLabel}`
+    return `No applications in ${filterLabel}`
+  }
+
+  const emptyMessage = getEmptyMessage()
 
   return (
     <SafeAreaView className="flex-1 bg-background mx-5 pt-5">
@@ -52,7 +69,7 @@ const Applications = () => {
           <Image source={icons.plus} className="size-5" tintColor={colors.background} />
         </Pressable>
       </View>
-
+      {/* Search Box */}
       <View className="search-box mx-5">
         <Image source={icons.search} className="size-4.5" tintColor={colors.mutedForeground} />
         <TextInput
@@ -68,7 +85,7 @@ const Applications = () => {
           accessibilityLabel="Search applications"
         />
       </View>
-
+       {/* Search Buttom */}
       <View className="filter-row mx-5" accessibilityRole="tablist">
         {APPLICATION_FILTERS.map((option) => {
           const isActive = filter === option.key
@@ -87,10 +104,10 @@ const Applications = () => {
           )
         })}
       </View>
-
+      {/* Application List */}
       <FlatList
         className="mt-4.5 mx-5"
-        data={visible}
+        data={searachedApplications}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <Pressable

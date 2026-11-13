@@ -265,7 +265,7 @@ const ApplicationForm = ({ application, onSave }: Props) => {
           padding the form on both platforms keeps the fields above it */}
       <KeyboardAvoidingView className="flex-1" behavior="padding">
         <View className="modal-header">
-          <Text className="modal-title" accessibilityRole="header">{isEditing ? 'Edit application' : 'New application'}</Text>
+          <Text className="modal-title" accessibilityRole="header">{isEditing ? `Edit ${application?.type}` : 'New application'}</Text>
           <Pressable className="modal-close" onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close">
             <Text className="modal-close-text">✕</Text>
           </Pressable>
@@ -321,27 +321,28 @@ const ApplicationForm = ({ application, onSave }: Props) => {
             <Text className="auth-helper">Filled from the circular by AI. Check every field, especially the deadline, before saving.</Text>
           )}
 
-          {/* The type decides which fields exist, so it's fixed once the application is saved */}
-          <View className="flex-row gap-2" accessibilityRole="radiogroup">
-            {TYPES.map((option) => {
-              const meta = TYPE_META[option]
-              const isActive = type === option
-              const isLocked = isEditing && !isActive
-              return (
-                <Pressable
-                  key={option}
-                  className={clsx('type-option', isActive && ['type-option-active', meta.chipClass], isLocked && 'opacity-40')}
-                  onPress={() => changeType(option)}
-                  disabled={isEditing}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: isActive, disabled: isEditing }}
-                >
-                  <Image source={meta.icon} className="size-5" tintColor={colors.primary} />
-                  <Text className="type-option-text">{meta.label}</Text>
-                </Pressable>
-              )
-            })}
-          </View>
+          {/* The type decides which fields exist, so it's only picked when creating;
+              while editing it can't change, so the picker is hidden */}
+          {!isEditing && (
+            <View className="flex-row gap-2" accessibilityRole="radiogroup">
+              {TYPES.map((option) => {
+                const meta = TYPE_META[option]
+                const isActive = type === option
+                return (
+                  <Pressable
+                    key={option}
+                    className={clsx('type-option', isActive && ['type-option-active', meta.chipClass])}
+                    onPress={() => changeType(option)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: isActive }}
+                  >
+                    <Image source={meta.icon} className="size-5" tintColor={colors.primary} />
+                    <Text className="type-option-text">{meta.label}</Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+          )}
 
           <Field label={copy.title} error={showErrors ? errors.title : ''}>
             <TextInput

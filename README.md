@@ -5,9 +5,9 @@ and ask an AI research assistant about your applications and the web.**
 
 NextStep is a React Native (Expo) app for people applying to many places at once: jobs, graduate
 programs, and professors for research positions. Each kind of application has its own stages,
-fields and reminders. An AI layer reads pasted job circulars to fill in the form, and a research
-agent (OpenAI or Claude with web search, plus tools that read your saved applications) answers questions
-with cited sources.
+fields and reminders. AI reads pasted job circulars to fill in the form, and a research agent
+(OpenAI or Claude with web search, plus tools that read your saved applications) answers questions
+with cited sources. The AI runs on the phone with the user's own API key; there is no AI server.
 
 <!-- Add screenshots or a short demo GIF here, e.g. ![Home](docs/home.png) -->
 
@@ -46,13 +46,12 @@ with cited sources.
 
 ### ✨ AI features
 
-| Feature | What it does |
-|---|---|
-| **Fill from a circular** | Paste a job circular, program page or professor profile. The AI fills in the type, title, organization, deadline (in your time zone), link, email, location and a short summary. Every extracted value is checked against the original text, and you review everything before saving. |
-| **Ask NextStep** | A research agent. It reads your saved applications ("Which of my jobs need React Native?", "Which applications close this month?") and searches the web for interview questions and candidate experiences, professors' research and reviews, and admission deadlines, fees, funding and IELTS/GRE requirements. It can combine both: "What have my interview-stage companies asked before?". The answer streams in with its sources; tap one to open the web page or the application. Open it from an application to start from that one. |
+| Feature | Without a key | With your own OpenAI or Claude key (Profile → AI) |
+|---|---|---|
+| **Fill from a circular**: paste a job circular, program page or professor profile; the AI fills in the type, title, organization, deadline (in your time zone), link, email, location and a short summary. Every value is checked against the original text, and you review everything before saving. | Free with Gemini, **50 fills per day** | Unlimited, on your key |
+| **Ask NextStep**: a research agent that reads your saved applications ("Which of my jobs need React Native?") and searches the web for interview questions, professors' research, and admission deadlines, fees and test requirements. The answer streams in with its sources. | Off: the button is dimmed and explains where to add a key | On |
 
-How these work, and why they were built this way, is explained in detail in
-**[AI_ARCHITECTURE.md](AI_ARCHITECTURE.md)**.
+How these work is explained in **[AI_ARCHITECTURE.md](AI_ARCHITECTURE.md)**.
 
 ### Works offline
 
@@ -71,84 +70,73 @@ lost if the app is fully closed before reconnecting. AI features need a connecti
 | Auth | Firebase Authentication (email + password) |
 | Main database | Firebase Realtime Database (live sync, offline writes, per-user security rules) |
 | Notifications | expo-notifications; react-native-notify-kit for Android alarms |
-| AI backend | Supabase Edge Functions (Deno); Supabase Postgres for the daily limits |
-| AI models | Research agent: OpenAI `gpt-6.1-terra` with web search by default, or Claude Opus 5.5 (switch with `AI_PROVIDER`); OpenAI `gpt-6.1-terra` with structured output (extraction) |
+| AI (user's key) | OpenAI `gpt-6.1-terra` or Claude Opus 5.5, called from the phone with the official SDKs; key in expo-secure-store |
+| AI (free) | Gemini `gemini-3.8-flash` through Firebase AI Logic (Gemini Developer API, Spark plan), circular reading only |
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────── App (Expo) ────────────────┐
-│ Screens · Reminders · Ask NextStep chat    │
-└───────┬───────────────────────────┬────────┘
-        │ applications              │ AI requests + Firebase ID token
-        ▼                           ▼
-┌───────────────────┐     ┌─────────────────────────────┐      ┌─────────────────────┐
-│ Firebase          │     │ Supabase Edge Function "ai" │ ───► │ OpenAI: extract +   │
-│ Auth              │◄────│ verify token → daily limit  │      │ research (default)  │
-│ Realtime Database │     │ → extract / research        │      ├─────────────────────┤
-│ (source of truth) │     └──────────────┬──────────────┘      │ Claude: research    │
-└───────────────────┘                    ▼                     └─────────────────────┘
-                          ┌─────────────────────────────┐
-                          │ Postgres: ai_usage          │
-                          │ (daily limits)              │
-                          └─────────────────────────────┘
+┌──────────────────────── App (Expo) ────────────────────────┐
+│ Screens · Reminders · Ask NextStep · Fill from a circular  │
+│                                                            │
+│  lib/ai/research  (agent loop + application tools)         │
+│  lib/ai/circular  (prompt, schema, grounding checks)       │
+│  lib/ai/keys      (user's key, encrypted on the phone)     │
+└──────┬──────────────────────┬──────────────────────┬───────┘
+       │ applications,        │ user's key           │ no key
+       │ free-fill counter    ▼                      ▼
+       ▼              ┌────────────────┐   ┌─────────────────────┐
+┌───────────────────┐ │ OpenAI/Claude  │   │ Firebase AI Logic   │
+│ Firebase          │ │ (web search    │   │ → Gemini (free tier)│
+│ Auth              │ │  included)     │   └─────────────────────┘
+│ Realtime Database │ └────────────────┘
+└───────────────────┘
 ```
 
-- **Firebase Realtime Database is the source of truth.** All application data lives there.
-  The research agent's tools read it with the user's own token, so the Firebase rules still apply.
-- **Supabase is only the AI layer.** It runs the function and counts daily requests.
-- **No API keys on the phone.** The OpenAI and Claude keys are only on the server. The server
-  verifies the Firebase sign-in token on every request and takes the user id from it.
+- **Firebase Realtime Database is the only database.** Applications, and the per-user count of
+  free circular fills.
+- **No AI server.** The app calls OpenAI or Claude directly with the user's own key, so usage is
+  billed to the user. The free Gemini reader goes through Firebase AI Logic, so no Gemini key is in
+  the app either.
+- **The agent's tools read the applications already on the phone**, so they include changes that
+  haven't synced yet and can only see this user's data.
 
 ---
 
 ## How the research agent works
 
 Ask NextStep is an **agent**: a model, a set of tools, and a loop (the *harness*) that runs on the
-server until the model has an answer.
+phone until the model has an answer.
 
 ```
 question ──► the AI ──► "call list_applications({type: 'job'})"
-                           │  server runs it, sends back one line per application
+                           │  the app answers with one line per application
              the AI ──► "call read_applications({ids: [...]})"
-                           │  server sends back those circulars
-             the AI ──► searches the web (run on the AI's side)
-             the AI ──► final answer with sources ──► streamed to the app
+                           │  the app sends those circulars
+             the AI ──► searches the web (run on the AI company's side)
+             the AI ──► final answer with sources, streamed to the screen
 ```
 
-| Part | What it does | Where |
+| Part | What it does | Where (`lib/ai/research/`) |
 |---|---|---|
 | **The rules** | one system prompt: prefer official sources, search before stating facts, never guess, plain text for a phone | `agent.ts` |
-| **The tools** | web search (run by the AI company); `list_applications` (every saved application, one line each) and `read_applications` (full circulars), run by us and read-only | `applications.ts` |
-| **The loop** | call the AI → if it asks for a tool, run it and send the result back → repeat (at most 10 rounds) until it answers | `agent-openai.ts`, `agent-claude.ts` |
-| **Around the loop** | login check, daily limit, the first message, status lines ("Searching: …"), sources, streaming | `index.ts`, `research.ts` |
-| **The chat** | the app keeps the chat the server returns and sends it back with the next question, so follow-ups work | `lib/ai.ts`, `app/ask.tsx` |
-
-**Two AIs, one harness.** It runs on OpenAI `gpt-6.1-terra` by default, or on Claude Opus 5.5.
-Everything except the loop is shared. To switch, set the Supabase secret `AI_PROVIDER` to `claude`
-or `openai`; no redeploy or app update is needed.
-
-The full walk-through is in [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md#5-feature-2--ask-nextstep-the-research-agent),
-and a beginner's explanation is in [AI_HARNESS_EXPLAINED.txt](AI_HARNESS_EXPLAINED.txt).
+| **The tools** | web search (run by the AI company); `list_applications` and `read_applications`, run by the app, read-only | `application-tools.ts` |
+| **The loop** | call the AI → if it asks for a tool, run it and send the result back → repeat (at most 10 rounds) | `openai-agent.ts`, `claude-agent.ts` |
+| **Around the loop** | picks the user's AI, the first message, status lines, sources, friendly errors | `research.ts` |
+| **The chat** | the screen keeps the chat and passes it back with the next question, so follow-ups work | `app/ask.tsx` |
 
 ---
 
-## Security highlights
+## Security and privacy
 
-- AI keys kept server-side in Supabase secrets, never in the app bundle.
+- The user's API key is stored only on their phone, in encrypted storage (Android Keystore / iOS
+  Keychain), one per account. It is never written to the database.
 - The agent's tools only read, and only the signed-in user's own applications.
-- Firebase ID tokens verified against Google's public keys (signature, RS256, issuer, audience,
-  expiry); the user id is never taken from the request body.
 - Firebase rules: each user can only read and write their own data.
-- Supabase: Row Level Security on with no policies (deny by default); database functions callable
-  only by the server.
-- Per-user daily AI limits, request size limits, and prompt-injection defenses (documents are
-  treated as untrusted data, extracted values are checked against the source, nothing is saved
-  without the user).
-
-Details and test results: [AI_ARCHITECTURE.md → Security](AI_ARCHITECTURE.md#6-security).
+- Prompt-injection defenses: circulars, notes and web pages are treated as untrusted data,
+  extracted values are checked against the source, and nothing is saved without the user.
 
 ---
 
@@ -160,7 +148,6 @@ Details and test results: [AI_ARCHITECTURE.md → Security](AI_ARCHITECTURE.md#6
 - Android Studio with an emulator **or** an Android phone with USB/wireless debugging
   (macOS + Xcode for iOS)
 - A Firebase project (Authentication with Email/Password enabled, and Realtime Database)
-- For the AI features: a Supabase project, and an OpenAI API key (plus a Claude API key if you want the agent on Claude)
 
 ### 1. Install
 
@@ -171,51 +158,30 @@ npm install
 ### 2. Configure Firebase
 
 Put your Firebase web config in `lib/firebase.ts` (it identifies the project and is not a secret;
-the security rules protect the data). Deploy the rules in `database.rules.json` to your
-Realtime Database.
-
-### 3. Environment variables
-
-Create `.env` in the project root:
+the security rules protect the data). Deploy the rules in `database.rules.json`:
 
 ```bash
-EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+npx firebase deploy --only database
 ```
 
-Only public values go here. Variables starting with `EXPO_PUBLIC_` are bundled into the app.
+### 3. Turn on the free AI (optional)
 
-### 4. Set up the AI backend (Supabase)
+Firebase console → **AI Logic** → **Get started** → choose the **Gemini Developer API**. This keeps
+the project on the free Spark plan. Without it, "Fill from a circular" only works for users who
+added their own key.
+
+### 4. Run
+
+Reminders, alarms and the key store use native modules that **Expo Go doesn't include**, so run a
+development build:
 
 ```bash
-npx supabase login
-npx supabase link --project-ref <project-ref>
-
-# Database: the daily-limit table and function
-npx supabase db push --linked
-
-# Secrets (create supabase/functions/.env first; it is gitignored)
-#   OPENAI_API_KEY=sk-...
-#   ANTHROPIC_API_KEY=sk-ant-...      only if you set AI_PROVIDER=claude
-#   AI_PROVIDER=openai                optional: openai (default) or claude
-#   FIREBASE_PROJECT_ID=<your-firebase-project-id>
-#   FIREBASE_DATABASE_URL=https://...   only if it isn't <project-id>-default-rtdb.firebaseio.com
-npx supabase secrets set --env-file supabase/functions/.env
-
-# Deploy the function (no Docker needed)
-npx supabase functions deploy ai --use-api
+npx expo prebuild --platform android   # after adding native libraries or changing app.json
+npm run android                        # builds and installs the development build
+npx expo start                         # later: start the dev server
 ```
 
-The app works without this step, but the ✨ AI features will show an error.
-
-### 5. Run
-
-Reminders and alarms use native modules that **Expo Go doesn't include**, so run a development build:
-
-```bash
-npm run android          # builds and installs the development build (expo run:android)
-npx expo start           # later: start the dev server; add -c after changing .env
-```
+Each user adds their own OpenAI or Claude key in **Profile → AI** to turn on Ask NextStep.
 
 ---
 
@@ -227,8 +193,6 @@ npx expo start           # later: start the dev server; add -c after changing .e
 | `npm start` | start the Expo dev server |
 | `npx tsc --noEmit` | type-check the app |
 | `npm run lint` | lint |
-| `npx supabase db push --linked` | apply database migrations to Supabase |
-| `npx supabase functions deploy ai --use-api` | deploy the AI function |
 
 ---
 
@@ -242,19 +206,21 @@ app/                          Screens (Expo Router: every file is a route)
   ask.tsx                     Ask NextStep (research agent chat)
   alarm.tsx                   full-screen ringing alarm (Android)
   onboarding.tsx
-components/                   Form, cards, detail sections
+components/                   Form, cards, detail sections, AI key settings
 lib/
   firebase.ts                 Firebase setup
   database.ts                 Realtime Database reads and writes
   applications-store.tsx      live applications list for the whole app
   applications.ts             stages, reminder presets, date helpers
   notifications.ts, alarms.ts reminders, deadline and follow-up notifications, alarms
-  ai.ts                       the app's client for the AI function (streams research answers)
-supabase/
-  migrations/                 database schema (daily limits)
-  functions/ai/               Edge Function: auth, extraction, research agent and its tools
+  ai/
+    keys.tsx                  the user's AI key (SecureStore)
+    providers.ts              OpenAI / Claude clients and error messages
+    circular.ts               Fill from a circular: prompt, schema, grounding checks
+    gemini.ts                 the free Gemini reader and its daily limit
+    research/                 Ask NextStep: the agent loop, its tools and rules
 database.rules.json           Firebase Realtime Database security rules
-AI_ARCHITECTURE.md            how the AI features work, decisions and measurements
+AI_ARCHITECTURE.md            how the AI features work
 ```
 
 ---
@@ -262,14 +228,13 @@ AI_ARCHITECTURE.md            how the AI features work, decisions and measuremen
 ## Known limitations
 
 - Ringing alarms are Android-only; iOS gets notifications.
-- AI features need a connection and are limited to 30 AI requests per user per day.
+- AI features need a connection.
+- The free fill limit (50 a day) is counted in Realtime Database by the app. The rules cap the
+  number, but a user who edits the database directly could reset their own count; Firebase App
+  Check is the next step to protect the free quota.
 - Only pasted text is supported for circulars, not images or PDFs yet.
 - Applications created before the AI features have no saved circular, so the agent only sees their fields and notes.
-- The agent reads applications from the server, so offline changes that haven't synced yet aren't in its answers.
-- Each research question uses API credit with the chosen AI (a few cents on OpenAI's `gpt-6.1-terra`; more on Claude Opus 5.5, or when it searches a lot).
-- Supabase runs on the free tier, so the project pauses after about a week without activity.
-
-More in [AI_ARCHITECTURE.md → Limits and known gaps](AI_ARCHITECTURE.md#11-limits-and-known-gaps).
+- Each research question uses the user's own API credit (a few cents on `gpt-6.1-terra`; more on Claude Opus 5.5, or when it searches a lot).
 
 ---
 
@@ -280,4 +245,5 @@ More in [AI_ARCHITECTURE.md → Limits and known gaps](AI_ARCHITECTURE.md#11-lim
 - Extract skills and required experience from each circular, so the application list answers more without reading circulars
 - CV upload and a fit score ranking saved circulars against your CV
 - Scan circulars from a photo or PDF
+- Firebase App Check for the free Gemini reader
 - An evaluation set to measure answer quality

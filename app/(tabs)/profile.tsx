@@ -9,6 +9,7 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useApplications } from '@/lib/applications-store';
 import { FOLLOW_UP_DAYS, getInitials, getProfileStats } from '@/lib/applications';
+import AiKeySettings from '@/components/AiKeySettings';
 
 const SafeAreaView = styled(RNSafeAreaView);
 const StyledImage = styled(Image);
@@ -85,6 +86,8 @@ const Profile = () => {
             </View>
           ))}
         </View>
+
+        <AiKeySettings />
 
         <Pressable className="sign-out-button" onPress={handleSignOut} accessibilityRole="button">
           <Text className="sign-out-text">Sign out</Text>

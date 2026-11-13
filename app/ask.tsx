@@ -9,7 +9,9 @@ import { colors } from '@/constants/theme'
 import { useAuth } from '@/lib/auth-context'
 import { useApplications } from '@/lib/applications-store'
 import { findApplication } from '@/lib/applications'
-import { readableAnswer, streamResearch, type ResearchHistory, type ResearchSource } from '@/lib/ai'
+import { useAiAccess } from '@/lib/ai/access'
+import { createResearchChat, readableAnswer, type ResearchSource } from '@/lib/ai/research/research'
+import { showToast } from '@/lib/toast'
 
 const SafeAreaView = styled(RNSafeAreaView)
 
@@ -31,19 +33,23 @@ const SUGGESTIONS: Record<ApplicationType | 'all', string[]> = {
   professor: ['What are they researching now?', 'What are their recent papers?', 'Are they taking new students?'],
 }
 
-// Chat with the research agent: it reads the user's saved applications and searches the web.
-// Opened with `applicationId`, the chat starts from that application
+// Chat with the research agent: it reads the user's saved applications and searches the web, using the
+// user's own OpenAI or Claude key (see lib/ai/research). Opened with `applicationId`, the chat starts
+// from that application
 const Ask = () => {
   const router = useRouter()
   const { applicationId } = useLocalSearchParams<{ applicationId?: string }>()
   const { user, initializing } = useAuth()
   const { applications } = useApplications()
+  const { research, askResearch } = useAiAccess()
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
   const [isThinking, setIsThinking] = useState(false)
   const listRef = useRef<FlatList<Message>>(null)
-  // The chat so far, exactly as the server returned it; null until the first answer
-  const history = useRef<ResearchHistory>(null)
+  // The research chat; it remembers the earlier questions and answers itself
+  const [chat, setChat] = useState(createResearchChat)
+  // Numbers each question and answer, for their list keys
+  const turnCount = useRef(0)
 
   if (initializing) return null
   if (!user) return <Redirect href="/sign-in" />
@@ -55,19 +61,21 @@ const Ask = () => {
   const send = async (text: string) => {
     const question = text.trim()
     if (!question || isThinking) return
-    const now = Date.now()
-    const answerId = `answer-${now}`
+    // The buttons that open this screen are off without a key, but the key may have been removed since
+    if (!research.allowed) return showToast(research.reason)
+    const turn = ++turnCount.current
+    const answerId = `answer-${turn}`
     setMessages((current) => [
       ...current,
-      { id: `question-${now}`, role: 'user', text: question },
+      { id: `question-${turn}`, role: 'user', text: question },
       { id: answerId, role: 'model', text: '', status: 'Thinking…' },
     ])
     setDraft('')
     setIsThinking(true)
     try {
-      await streamResearch(
-        // The application only goes with the first question; after that it's in the history
-        { question, history: history.current, applicationId: history.current === null ? scoped?.id : undefined },
+      await askResearch(
+        chat,
+        { question, applications, application: scoped },
         (event) => {
           switch (event.type) {
             case 'status':
@@ -76,22 +84,15 @@ const Ask = () => {
               return updateMessage(answerId, (message) => ({ text: message.text + event.delta, status: undefined }))
             case 'sources':
               return updateMessage(answerId, () => ({ sources: event.sources }))
-            case 'done':
-              if (event.history !== null) history.current = event.history
-              return
-            case 'error':
-              // A failed question isn't added to the history, so asking it again starts clean
-              return updateMessage(answerId, (message) => ({
-                text: message.text ? `${message.text}\n\n${event.message}` : event.message,
-                status: undefined,
-                isError: true,
-              }))
           }
         },
       )
     } catch (error) {
-      updateMessage(answerId, () => ({
-        text: error instanceof Error ? error.message : 'Something went wrong',
+      // A failed question isn't remembered, so asking it again starts clean.
+      // Any part of the answer already shown stays, with the error under it
+      const reason = error instanceof Error ? error.message : 'Something went wrong'
+      updateMessage(answerId, (message) => ({
+        text: message.text ? `${message.text}\n\n${reason}` : reason,
         status: undefined,
         isError: true,
       }))
@@ -100,9 +101,9 @@ const Ask = () => {
     }
   }
 
-  // The history can't be shortened, so a long chat is started again instead
+  // Forgets the earlier questions, so the next one starts fresh
   const newChat = () => {
-    history.current = null
+    setChat(createResearchChat())
     setMessages([])
   }
 
@@ -143,8 +144,9 @@ const Ask = () => {
           ListEmptyComponent={
             <View className="gap-3">
               <Text className="auth-helper">
-                Ask about your saved applications, or research interview questions, professors and admissions on the web.
-                Every answer lists its sources.
+                {research.allowed
+                  ? 'Ask about your saved applications, or research interview questions, professors and admissions on the web. Every answer lists its sources.'
+                  : research.reason}
               </Text>
               <View className="reminder-row">
                 {SUGGESTIONS[scoped?.type ?? 'all'].map((suggestion) => (

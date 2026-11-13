@@ -15,6 +15,12 @@
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
             }
           }
+        },
+        "aiUsage": {
+          ".validate": "newData.hasChildren(['day', 'freeFills'])",
+          "day": { ".validate": "newData.isString() && newData.val().length === 10" },
+          "freeFills": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50" },
+          "$other": { ".validate": false }
         }
       }
     }

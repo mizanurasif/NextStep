@@ -18,7 +18,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.USE_FULL_SCREEN_INTENT"],
+      "permissions": [
+        "android.permission.USE_FULL_SCREEN_INTENT"
+      ],
       "package": "com.mizanurasif.Subcription"
     },
     "web": {
@@ -64,7 +66,8 @@
           ]
         }
       ],
-      "react-native-notify-kit"
+      "react-native-notify-kit",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

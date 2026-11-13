@@ -21,7 +21,9 @@ import {
 import { FOLLOW_UP_DAYS, STAGES_BY_TYPE, changeStage } from '@/lib/stage-transition'
 import DateTimeField from '@/components/DateTimeField'
 import { ensureAlarmPermissions } from '@/lib/alarms'
-import { MAX_CIRCULAR_CHARS, extractCircular, type CircularFields } from '@/lib/ai'
+import { useAiAccess, whenAllowed } from '@/lib/ai/access'
+import { MAX_CIRCULAR_CHARS, type CircularFields } from '@/lib/ai/circular'
+import { FREE_FILLS_PER_DAY } from '@/lib/ai/gemini'
 
 const SafeAreaView = styled(RNSafeAreaView)
 
@@ -107,6 +109,8 @@ const ApplicationForm = ({ application, onSave }: Props) => {
   const [circularError, setCircularError] = useState('')
   // The circular the form was filled from, saved with a new application so the research agent can read it
   const [circular, setCircular] = useState<CircularSource | null>(null)
+  // Whether the circular reader can be used (own key, or free fills left) and the reader itself
+  const { circular: circularAccess, freeFillsLeft, readCircular } = useAiAccess()
 
   // Notes is the last field, so showing it while typing means scrolling to the end
   const scrollRef = useRef<ScrollView>(null)
@@ -171,12 +175,13 @@ const ApplicationForm = ({ application, onSave }: Props) => {
     if (summary) setNotes((current) => (current.trim() ? `${current.trim()}\n\n${summary}` : summary))
   }
 
-  const readCircular = async () => {
+  const fillFromCircular = async () => {
     if (isReadingCircular) return
     setIsReadingCircular(true)
     setCircularError('')
     try {
-      const { fields, headings } = await extractCircular(circularText)
+      // The user's own key when they have one, otherwise a free Gemini fill (see lib/ai/access)
+      const { fields, headings } = await readCircular(circularText)
       applyCircular(fields)
       setCircular({ text: circularText.trim(), headings })
       setCircularOpen(false)
@@ -272,9 +277,15 @@ const ApplicationForm = ({ application, onSave }: Props) => {
         </View>
 
         <ScrollView ref={scrollRef} contentContainerClassName="gap-4 px-5 py-4" keyboardShouldPersistTaps="handled">
-          {/* AI fills the form from a pasted circular; the user still checks everything and saves */}
+          {/* AI fills the form from a pasted circular; the user still checks everything and saves.
+              Out of free fills and no key of their own: dimmed, and a tap says why */}
           {!isEditing && !circularOpen && (
-            <Pressable className="auth-secondary-button" onPress={() => setCircularOpen(true)} accessibilityRole="button">
+            <Pressable
+              className={clsx('auth-secondary-button', !circularAccess.allowed && 'opacity-50')}
+              onPress={whenAllowed(circularAccess, () => setCircularOpen(true))}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !circularAccess.allowed }}
+            >
               <Text className="auth-secondary-button-text">✨ Fill from a circular</Text>
             </Pressable>
           )}
@@ -306,7 +317,7 @@ const ApplicationForm = ({ application, onSave }: Props) => {
                 </Pressable>
                 <Pressable
                   className={clsx('reminder-chip reminder-chip-on flex-row items-center gap-2', (!circularText.trim() || isReadingCircular) && 'opacity-50')}
-                  onPress={readCircular}
+                  onPress={fillFromCircular}
                   disabled={!circularText.trim() || isReadingCircular}
                   accessibilityRole="button"
                   accessibilityState={{ disabled: !circularText.trim() || isReadingCircular, busy: isReadingCircular }}
@@ -315,6 +326,11 @@ const ApplicationForm = ({ application, onSave }: Props) => {
                   <Text className="reminder-chip-text">{isReadingCircular ? 'Reading…' : 'Fill form'}</Text>
                 </Pressable>
               </View>
+              {freeFillsLeft !== null && (
+                <Text className="auth-helper">
+                  Free AI: {freeFillsLeft} of {FREE_FILLS_PER_DAY} fills left today. Add your own key in Profile for unlimited.
+                </Text>
+              )}
             </Field>
           )}
           {circular && !circularOpen && (

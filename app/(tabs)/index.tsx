@@ -5,6 +5,8 @@ import { SafeAreaView as RNSafeAreaView} from "react-native-safe-area-context";
 import dayjs from "dayjs";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import clsx from "clsx";
+import { useAiAccess, whenAllowed } from "@/lib/ai/access";
 import { USER } from "@/constants/data";
 import { useApplications } from "@/lib/applications-store";
 import { icons } from "@/constants/icons";
@@ -18,6 +20,7 @@ const SafeAreaView = styled(RNSafeAreaView);
 
 export default function App() {
   const { applications } = useApplications();
+  const { research } = useAiAccess();
   const now = dayjs();
   const summary = getWeekSummary(applications, now);
   const dueSoon = getDueSoon(applications, now);
@@ -40,7 +43,14 @@ export default function App() {
             </View>
           </View>
           <View className="home-actions">
-            <Pressable className="home-icon-button" onPress={() => router.push("/ask")} accessibilityRole="button" accessibilityLabel="Ask NextStep">
+            {/* Ask NextStep needs the user's own AI key; without one it's dimmed and a tap says why */}
+            <Pressable
+              className={clsx("home-icon-button", !research.allowed && "opacity-50")}
+              onPress={whenAllowed(research, () => router.push("/ask"))}
+              accessibilityRole="button"
+              accessibilityLabel="Ask NextStep"
+              accessibilityState={{ disabled: !research.allowed }}
+            >
               <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
             </Pressable>
             <Pressable className="home-icon-button" accessibilityRole="button" accessibilityLabel="Notifications">

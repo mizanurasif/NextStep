@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { AuthProvider } from '@/lib/auth-context'
 import { ApplicationsProvider } from '@/lib/applications-store'
+import { AiAccessProvider } from '@/lib/ai/access'
 import { useReminderNotifications } from '@/lib/use-reminder-notifications'
 
 SplashScreen.preventAutoHideAsync();
@@ -41,10 +42,12 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ApplicationsProvider>
-        <ReminderNotifications />
-        <Stack screenOptions={{headerShown: false}} />
-      </ApplicationsProvider>
+      <AiAccessProvider>
+        <ApplicationsProvider>
+          <ReminderNotifications />
+          <Stack screenOptions={{headerShown: false}} />
+        </ApplicationsProvider>
+      </AiAccessProvider>
     </AuthProvider>
   );
 }

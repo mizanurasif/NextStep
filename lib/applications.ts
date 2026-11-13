@@ -1,6 +1,7 @@
 import dayjs, { type Dayjs } from "dayjs";
 import type { ImageSourcePropType } from "react-native";
 import { icons } from "@/constants/icons";
+import { getStatus, type StatusEvent } from "@/lib/status";
 
 export const TYPE_META: Record<ApplicationType, { label: string; chipClass: string; icon: ImageSourcePropType }> = {
     job: { label: "Job", chipClass: "bg-job", icon: icons.briefcase },
@@ -35,49 +36,10 @@ export const STAGE_TONE_CLASSES: Record<StageTone, { pill: string; text: string 
     positive: { pill: "bg-professor", text: "text-primary" },
 };
 
-// Every stage in the order an application moves through them
-export const STAGES_BY_TYPE: Record<ApplicationType, ApplicationStage[]> = {
-    job: ["saved", "applied", "interview", "offer", "rejected"],
-    university: ["preparing", "submitted", "under_review", "admitted", "rejected"],
-    professor: ["draft", "sent", "follow_up_due", "replied", "declined"],
-};
+// Stage order and the follow-up delay belong to stage changes; re-exported so existing imports keep working
+export { FOLLOW_UP_DAYS, STAGES_BY_TYPE } from "@/lib/stage-transition";
 
-// "On the day" reminders go off at this hour on the deadline's date
-export const ON_DAY_HOUR = 9;
-
-export type ReminderPreset = { key: string; label: string; minutesBefore: number; kind?: "on_day" };
-
-// A reminder has to be at least a minute from now, and before the deadline when there is one
-export const isValidReminderTime = (time: Dayjs, deadline: Dayjs | null, now: Dayjs) =>
-    !time.isBefore(now.add(1, "minute")) && (!deadline || time.isBefore(deadline));
-
-// The preset reminders that fit how far away the deadline is:
-//   over a week -> 1 week, 3 days, on the day; under a week -> 3 days, on the day;
-//   under 3 days -> on the day; under a day -> 1 hour
-export const getReminderPresets = (deadline: Date | string, now: Dayjs): ReminderPreset[] => {
-    const end = dayjs(deadline);
-    const minutesLeft = end.diff(now, "minute");
-    const week = { key: "week", label: "1 week before", minutesBefore: 10080 };
-    const threeDays = { key: "3days", label: "3 days before", minutesBefore: 4320 };
-    const onDay = {
-        key: "on_day",
-        label: `On the day · ${ON_DAY_HOUR} AM`,
-        minutesBefore: end.diff(end.startOf("day").hour(ON_DAY_HOUR), "minute"),
-        kind: "on_day" as const,
-    };
-    const hour = { key: "hour", label: "1 hour before", minutesBefore: 60 };
-
-    const presets =
-        minutesLeft >= 7 * 1440 ? [week, threeDays, onDay]
-        : minutesLeft >= 3 * 1440 ? [threeDays, onDay]
-        : minutesLeft >= 1440 ? [onDay]
-        : [hour];
-    // Drops "on the day" when the deadline is at or before 9 AM, and anything already too close
-    return presets.filter((p) => p.minutesBefore > 0 && isValidReminderTime(end.subtract(p.minutesBefore, "minute"), end, now));
-};
-
-// How long to wait for a professor's reply before following up
-export const FOLLOW_UP_DAYS = 7;
+// Reminder presets, fire times and labels live in lib/reminders
 
 export type ApplicationFilter = "all" | ApplicationType;
 
@@ -88,18 +50,8 @@ export const APPLICATION_FILTERS: { key: ApplicationFilter; label: string; chipC
     { key: "professor", label: "Prof", chipClass: "bg-professor" },
 ];
 
-// Stages that mean the application or email hasn't been sent yet
-const NOT_SUBMITTED_STAGES: ApplicationStage[] = ["saved", "preparing", "draft"];
-
-// A deadline only matters while you still have to act: before applying, submitting
-// or emailing a professor, or while an offer waits for your answer
-const DEADLINE_STAGES: ApplicationStage[] = ["saved", "preparing", "offer", "draft"];
-
-// Stages where nothing is left to do, so no reminders should go off
-export const CLOSED_STAGES: ApplicationStage[] = ["rejected", "admitted", "declined", "replied"];
-
-export const hasLiveDeadline = (application: Application) =>
-    !!application.deadline && DEADLINE_STAGES.includes(application.stage);
+// What each stage means (to do, waiting, closed…), which date matters, the stepper and the
+// calendar dates all come from getStatus in lib/status, one module per type
 
 // Morning from 6:00 AM, noon from 12:00 PM, afternoon from 4:00 PM,
 // evening from 6:30 PM, night from 7:30 PM until 6:00 AM
@@ -161,96 +113,74 @@ export const formatDaysAgo = (date: string, now: Dayjs) => {
 export const getDueSoon = (applications: Application[], now: Dayjs) =>
     applications
         .filter((a) => {
-            if (!hasLiveDeadline(a)) return false;
-            const deadline = dayjs(a.deadline);
-            return deadline.isAfter(now) && !deadline.isAfter(now.add(7, "day"));
+            const deadline = getStatus(a, now).liveDeadline;
+            return !!deadline && dayjs(deadline).isAfter(now) && !dayjs(deadline).isAfter(now.add(7, "day"));
         })
         .sort((a, b) => dayjs(a.deadline).valueOf() - dayjs(b.deadline).valueOf());
 
 export type AwaitingReply = Application;
 
-// When the user started waiting: applied for the job, submitted to the university, or emailed the professor
-export const getWaitingSince = (item: AwaitingReply) => {
-    if (item.type === "job") return item.appliedAt;
-    if (item.type === "university") return item.submittedAt;
-    return item.sentAt;
-};
-
-// Still waiting on the other side, oldest first:
-//   jobs that are applied or at interview (not yet offered or rejected),
-//   universities that are submitted or under review (not yet admitted or rejected),
-//   professors who haven't replied
+// Still waiting on the other side (phase "waiting"), the one you've waited on longest first
 export const getAwaitingReplies = (applications: Application[]) =>
     applications
-        .filter(
-            (a) =>
-                (a.type === "job" && (a.stage === "applied" || a.stage === "interview")) ||
-                (a.type === "university" && (a.stage === "submitted" || a.stage === "under_review")) ||
-                (a.type === "professor" && (a.stage === "sent" || a.stage === "follow_up_due")),
-        )
-        .sort((a, b) => dayjs(getWaitingSince(a)).valueOf() - dayjs(getWaitingSince(b)).valueOf());
+        .filter((a) => getStatus(a).phase === "waiting")
+        .sort((a, b) => dayjs(getStatus(a).sentAt).valueOf() - dayjs(getStatus(b).sentAt).valueOf());
 
-export const needsFollowUp = (professor: ProfessorApplication, now: Dayjs) =>
-    professor.stage === "follow_up_due" || (professor.followUpAt !== null && !dayjs(professor.followUpAt).isAfter(now));
-
-// The one date worth showing on a card: the deadline, or the follow-up for a professor
-// already emailed (a professor still in draft shows its deadline, like the other types)
+// The date line on a list card, in words: "Interview Nov 25", "Applied Nov 15",
+// "Follow up", "Missed Nov 20", "Nov 20"… `urgent` paints it red.
+// Which date it is comes from the status; this only words it
 export const getCardDate = (application: Application, now: Dayjs): { label: string; urgent: boolean } | null => {
-    if (application.type === "professor" && application.stage !== "draft") {
-        if (application.stage === "replied") {
-            return { label: application.repliedAt ? `Replied ${dayjs(application.repliedAt).format("MMM D")}` : "Replied", urgent: false };
-        }
-        if (application.stage === "declined") return null;
-        if (needsFollowUp(application, now)) return { label: "Follow up", urgent: true };
-        return application.followUpAt ? { label: `Follow up ${dayjs(application.followUpAt).format("MMM D")}`, urgent: false } : null;
-    }
+    const key = getStatus(application, now).keyDate;
+    if (!key) return null;
 
+    const day = (date: string) => dayjs(date).format("MMM D");
     const isWithinWeek = (date: string) => dayjs(date).startOf("day").diff(now.startOf("day"), "day") <= 7;
 
-    // Already sent: show where it stands instead of the old deadline
-    if (application.type === "job" && application.stage === "interview" && application.interviewAt) {
-        const upcoming = dayjs(application.interviewAt).isAfter(now);
-        return {
-            label: `Interview ${dayjs(application.interviewAt).format("MMM D")}`,
-            urgent: upcoming && isWithinWeek(application.interviewAt),
-        };
+    switch (key.kind) {
+        case "interview":
+            return { label: `Interview ${day(key.date)}`, urgent: dayjs(key.date).isAfter(now) && isWithinWeek(key.date) };
+        case "applied":
+            return { label: `Applied ${day(key.date)}`, urgent: false };
+        case "submitted":
+            return { label: `Submitted ${day(key.date)}`, urgent: false };
+        case "replied":
+            return { label: key.date ? `Replied ${day(key.date)}` : "Replied", urgent: false };
+        case "follow_up":
+            if (key.due) return { label: "Follow up", urgent: true };
+            return key.date ? { label: `Follow up ${day(key.date)}`, urgent: false } : null;
+        case "outcome":
+            // The stage pill already says it
+            return null;
+        case "deadline":
+            // A deadline that no longer matters (already applied…) isn't worth a line
+            if (!key.live) return null;
+            if (!dayjs(key.date).isAfter(now)) return { label: `Missed ${day(key.date)}`, urgent: false };
+            return { label: day(key.date), urgent: isWithinWeek(key.date) };
     }
-    if (application.type === "job" && (application.stage === "applied" || application.stage === "interview")) {
-        return application.appliedAt ? { label: `Applied ${dayjs(application.appliedAt).format("MMM D")}`, urgent: false } : null;
-    }
-    if (application.type === "university" && (application.stage === "submitted" || application.stage === "under_review")) {
-        return application.submittedAt ? { label: `Submitted ${dayjs(application.submittedAt).format("MMM D")}`, urgent: false } : null;
-    }
-
-    if (!hasLiveDeadline(application)) return null;
-    const deadline = dayjs(application.deadline);
-    if (!deadline.isAfter(now)) return { label: `Missed ${deadline.format("MMM D")}`, urgent: false };
-    return { label: deadline.format("MMM D"), urgent: isWithinWeek(deadline.toISOString()) };
 };
 
-// The date an item is sorted by: the follow-up date for a professor (or the deadline before
-// one is set), the deadline for everything else
-const getSortDate = (application: Application) =>
-    application.type === "professor" ? (application.followUpAt ?? application.deadline) : application.deadline;
-
-// 0 = date still ahead, 1 = no date, 2 = date passed
-const getDeadlineGroup = (application: Application, now: Dayjs) => {
-    const date = getSortDate(application);
-    if (!date) return 1;
-    return dayjs(date).isAfter(now) ? 0 : 2;
+// 0 = something to act on ahead, 1 = nothing to act on, 2 = the date to act by has passed
+const getSortGroup = (actionDate: string | null, now: Dayjs) => {
+    if (!actionDate) return 1;
+    return dayjs(actionDate).isAfter(now) ? 0 : 2;
 };
 
-// Upcoming dates first (soonest first), then items without one (latest change first),
-// then passed dates (the one that passed most recently first)
-export const sortApplications = (applications: Application[], now: Dayjs) =>
-    [...applications].sort((a, b) => {
-        const groupA = getDeadlineGroup(a, now);
-        const groupB = getDeadlineGroup(b, now);
+// Sorted by the next date you have to act by (status.actionDate: a live deadline, an interview,
+// a follow-up): upcoming ones first (soonest first), then items with nothing to act on
+// (latest change first), then passed ones (the one that passed most recently first)
+export const sortApplications = (applications: Application[], now: Dayjs) => {
+    const actionDate = new Map(applications.map((a) => [a.id, getStatus(a, now).actionDate]));
+    return [...applications].sort((a, b) => {
+        const dateA = actionDate.get(a.id) ?? null;
+        const dateB = actionDate.get(b.id) ?? null;
+        const groupA = getSortGroup(dateA, now);
+        const groupB = getSortGroup(dateB, now);
         if (groupA !== groupB) return groupA - groupB;
         if (groupA === 1) return dayjs(b.updatedAt).valueOf() - dayjs(a.updatedAt).valueOf();
         // Smallest distance from now first, whether the date is ahead or behind
-        return Math.abs(dayjs(getSortDate(a)).diff(now)) - Math.abs(dayjs(getSortDate(b)).diff(now));
+        return Math.abs(dayjs(dateA).diff(now)) - Math.abs(dayjs(dateB).diff(now));
     });
+};
 
 // Matches the query against the name, organization, place, research area and stage
 export const matchesSearch = (application: Application, query: string) => {
@@ -271,62 +201,17 @@ export const findApplication = (applications: Application[], id: string) => appl
 export const getLinkedProfessors = (applications: Application[], universityId: string) =>
     applications.filter((a): a is ProfessorApplication => a.type === "professor" && a.linkedApplicationId === universityId);
 
-// `anchor` is the deadline (or follow-up date) the reminder counts back from
-export const formatReminder = ({ minutesBefore, kind, at }: Reminder, anchor?: string | null) => {
-    if (kind === "on_day") return `On the day · ${ON_DAY_HOUR} AM`;
-    if (kind === "custom" && at) return dayjs(at).format("MMM D, h:mm A");
-    if (kind === "custom" && anchor) return dayjs(anchor).subtract(minutesBefore, "minute").format("MMM D, h:mm A");
-    if (minutesBefore === 0) return "On the day";
-    if (minutesBefore === 10080) return "1 week before";
-    if (minutesBefore % 1440 === 0) {
-        const days = minutesBefore / 1440;
-        return days === 1 ? "1 day before" : `${days} days before`;
-    }
-    const hours = Math.round(minutesBefore / 60);
-    return hours === 1 ? "1 hour before" : `${hours} hours before`;
-};
-
-export type StepState = "done" | "current" | "todo" | "failed";
-
-// The progress steps for each type; a bad outcome replaces the last step
-export const getSteps = (application: Application): { label: string; state: StepState }[] => {
-    const build = (labels: string[], current: number, failedLabel?: string) =>
-        labels.map((label, index) => {
-            if (failedLabel && index === labels.length - 1) return { label: failedLabel, state: "failed" as const };
-            if (index < current) return { label, state: "done" as const };
-            if (index === current) return { label, state: failedLabel ? ("done" as const) : ("current" as const) };
-            return { label, state: "todo" as const };
-        });
-
-    if (application.type === "job") {
-        const labels = ["Saved", "Applied", "Interview", "Offer"];
-        if (application.stage === "rejected") return build(labels, application.interviewAt ? 2 : 1, "Rejected");
-        const current = { saved: 0, applied: 1, interview: 2, offer: 3 }[application.stage];
-        return build(labels, current).map((s, i) => (i === 3 && current === 3 ? { ...s, state: "done" as const } : s));
-    }
-
-    if (application.type === "university") {
-        const labels = ["Preparing", "Submitted", "Review", "Admitted"];
-        if (application.stage === "rejected") return build(labels, 2, "Rejected");
-        const current = { preparing: 0, submitted: 1, under_review: 2, admitted: 3 }[application.stage];
-        return build(labels, current).map((s, i) => (i === 3 && current === 3 ? { ...s, state: "done" as const } : s));
-    }
-
-    const labels = ["Draft", "Sent", "Follow up", "Replied"];
-    if (application.stage === "declined") return build(labels, 1, "Declined");
-    const current = { draft: 0, sent: 1, follow_up_due: 2, replied: 3 }[application.stage];
-    return build(labels, current).map((s, i) => (i === 3 && current === 3 ? { ...s, state: "done" as const } : s));
-};
-
 export const getWeekSummary = (applications: Application[], now: Dayjs) => {
     const weekEnd = now.add(7, "day");
     const isThisWeek = (date?: string | null) => !!date && dayjs(date).isAfter(now) && dayjs(date).isBefore(weekEnd);
+    const statuses = applications.map((a) => getStatus(a, now));
 
     return {
-        dueThisWeek: applications.filter((a) => hasLiveDeadline(a) && isThisWeek(a.deadline)).length,
+        dueThisWeek: statuses.filter((s) => isThisWeek(s.liveDeadline)).length,
         upcomingInterviews: applications.filter((a) => a.type === "job" && isThisWeek(a.interviewAt)).length,
-        awaitingReply: getAwaitingReplies(applications).length,
-        submitted: applications.filter((a) => !NOT_SUBMITTED_STAGES.includes(a.stage)).length,
+        awaitingReply: statuses.filter((s) => s.phase === "waiting").length,
+        // Everything past "to do" has been applied, submitted or emailed
+        submitted: statuses.filter((s) => s.phase !== "to_do").length,
         total: applications.length,
     };
 };
@@ -341,27 +226,35 @@ export type CalendarEvent = {
 };
 
 // Every dated thing worth seeing on the calendar: live deadlines, interviews,
-// emails sent to professors and their follow-ups
+// emails sent to professors and their follow-ups. Which dates come from the status
+// (status.events); this only words them
 export const getCalendarEvents = (applications: Application[]): CalendarEvent[] => {
-    const events: CalendarEvent[] = [];
-    const add = (application: Application, kind: string, date: string | null | undefined, title: string, meta: string) => {
-        if (date) events.push({ id: `${application.id}-${kind}`, applicationId: application.id, type: application.type, date, title, meta });
-    };
     // "Machine Learning Lab · University of Alberta" → "Machine Learning Lab"
     const shortOrg = (application: Application) => application.organization.split("·")[0].trim();
 
-    applications.forEach((a) => {
-        if (hasLiveDeadline(a)) add(a, "deadline", a.deadline, a.title, `Deadline · ${a.organization}`);
-        if (a.type === "job" && a.stage === "interview") {
-            add(a, "interview", a.interviewAt, "Interview", `${a.title} · ${a.interviewMode ?? a.organization}`);
+    const words = (a: Application, kind: StatusEvent["kind"]) => {
+        switch (kind) {
+            case "deadline":
+                return { title: a.title, meta: `Deadline · ${a.organization}` };
+            case "interview":
+                return { title: "Interview", meta: `${a.title} · ${(a.type === "job" ? a.interviewMode : undefined) ?? a.organization}` };
+            case "sent":
+                return { title: `Emailed ${a.title}`, meta: `Professor · ${shortOrg(a)}` };
+            case "follow_up":
+                return { title: `Follow up: ${a.title}`, meta: `Professor · ${shortOrg(a)}` };
         }
-        if (a.type === "professor") {
-            add(a, "sent", a.sentAt, `Emailed ${a.title}`, `Professor · ${shortOrg(a)}`);
-            if (a.stage === "sent" || a.stage === "follow_up_due") {
-                add(a, "follow-up", a.followUpAt, `Follow up: ${a.title}`, `Professor · ${shortOrg(a)}`);
-            }
-        }
-    });
+    };
+
+    const events = applications.flatMap((a) =>
+        getStatus(a).events.map((event) => ({
+            // "follow-up" (not follow_up) keeps the ids the calendar already used
+            id: `${a.id}-${event.kind === "follow_up" ? "follow-up" : event.kind}`,
+            applicationId: a.id,
+            type: a.type,
+            date: event.date,
+            ...words(a, event.kind),
+        })),
+    );
 
     return events.sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf());
 };
@@ -385,10 +278,12 @@ export const getMonthGrid = (month: Dayjs) => {
 // Numbers for the profile tiles
 export const getProfileStats = (applications: Application[]) => {
     const jobs = applications.filter((a): a is JobApplication => a.type === "job");
-    const emailed = applications.filter((a): a is ProfessorApplication => a.type === "professor" && a.stage !== "draft");
+    // Past "to do" = the application or email went out
+    const isSent = (a: Application) => getStatus(a).phase !== "to_do";
+    const emailed = applications.filter((a): a is ProfessorApplication => a.type === "professor" && isSent(a));
 
     return {
-        jobsApplied: jobs.filter((a) => a.stage !== "saved").length,
+        jobsApplied: jobs.filter(isSent).length,
         interviews: jobs.filter((a) => !!a.interviewAt).length,
         professorsReplied: emailed.filter((a) => a.stage === "replied").length,
         professorsEmailed: emailed.length,

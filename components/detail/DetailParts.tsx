@@ -7,7 +7,9 @@ import clsx from 'clsx'
 import dayjs, { type Dayjs } from 'dayjs'
 import { colors } from '@/constants/theme'
 import { icons } from '@/constants/icons'
-import { TYPE_META, formatReminder, getSteps, getTimeDistance } from '@/lib/applications'
+import { TYPE_META, getTimeDistance } from '@/lib/applications'
+import { formatReminder } from '@/lib/reminders'
+import { getStatus, type KeyDate } from '@/lib/status'
 
 // Alert buttons do nothing on web, so fall back to the browser's confirm dialog there
 const confirmDelete = (title: string, onConfirm: () => void) => {
@@ -111,9 +113,47 @@ export const countdownBadge = (date: string, now: Dayjs, future: string, past: s
   return { number: value, unit: [unit, inPast ? past : future].filter(Boolean).join(' ') }
 }
 
+const FULL_DATE = 'ddd, MMM D · h:mm A'
+
+// What the KeyDateCard says for an application, or null for no card.
+// Which date (or outcome) it is comes from lib/status; this only words it:
+//   interview → "Interview · Tue, Nov 25 · 10:00 AM" + "3 days to go"
+//   applied   → "Applied on · …" + "2 days ago"
+//   deadline  → "Application deadline" / "Reply to the offer by" + "5 days left"
+//   outcome   → "Outcome · Not selected this time", "Decision · Admitted"…
+// Professors use their own status card instead, so follow-up and replied give no card here
+export const getKeyDateCard = (application: Application, now: Dayjs) => {
+  const key: KeyDate | null = getStatus(application, now).keyDate
+  if (!key) return null
+  const full = (date: string) => dayjs(date).format(FULL_DATE)
+
+  switch (key.kind) {
+    case 'interview':
+      return { label: 'Interview', value: full(key.date), badge: countdownBadge(key.date, now, 'to go', 'ago') }
+    case 'applied':
+      return { label: 'Applied on', value: full(key.date), badge: countdownBadge(key.date, now, 'left', 'ago') }
+    case 'submitted':
+      return { label: 'Submitted on', value: full(key.date), badge: countdownBadge(key.date, now, 'left', 'ago') }
+    case 'deadline':
+      return {
+        label: key.forOffer ? 'Reply to the offer by' : 'Application deadline',
+        value: full(key.date),
+        badge: countdownBadge(key.date, now, 'left', 'ago'),
+      }
+    case 'outcome':
+      if (key.outcome === 'not_selected') return { label: 'Outcome', value: 'Not selected this time' }
+      if (key.outcome === 'admitted') return { label: 'Decision', value: 'Admitted' }
+      if (key.outcome === 'not_admitted') return { label: 'Decision', value: 'Not admitted this time' }
+      return { label: 'Decision', value: 'Declined' }
+    case 'follow_up':
+    case 'replied':
+      return null
+  }
+}
+
 export const StageStepper = ({ application }: { application: Application }) => (
   <View className="stepper" accessibilityLabel="Progress">
-    {getSteps(application).map((step, index) => (
+    {getStatus(application).steps.map((step, index) => (
       <View key={step.label} className="step">
         <View
           className={clsx('step-dot', {

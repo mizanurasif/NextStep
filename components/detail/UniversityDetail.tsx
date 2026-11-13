@@ -18,30 +18,10 @@ import {
   SectionTitle,
   StageStepper,
   Timeline,
-  countdownBadge,
+  getKeyDateCard,
 } from '@/components/detail/DetailParts'
 
 const FULL_DATE = 'ddd, MMM D · h:mm A'
-
-const getKeyDate = (university: UniversityApplication, now: Dayjs) => {
-  if (university.stage === 'admitted') return { label: 'Decision', value: 'Admitted' }
-  if (university.stage === 'rejected') return { label: 'Decision', value: 'Not admitted this time' }
-  if ((university.stage === 'submitted' || university.stage === 'under_review') && university.submittedAt) {
-    return {
-      label: 'Submitted on',
-      value: dayjs(university.submittedAt).format(FULL_DATE),
-      badge: countdownBadge(university.submittedAt, now, 'left', 'ago'),
-    }
-  }
-  if (university.deadline) {
-    return {
-      label: 'Application deadline',
-      value: dayjs(university.deadline).format(FULL_DATE),
-      badge: countdownBadge(university.deadline, now, 'left', 'ago'),
-    }
-  }
-  return null
-}
 
 const formatFee = (fee?: Money) => {
   if (!fee) return null
@@ -51,7 +31,8 @@ const formatFee = (fee?: Money) => {
 const UniversityDetail = ({ university, now }: { university: UniversityApplication; now: Dayjs }) => {
   const router = useRouter()
   const { applications } = useApplications()
-  const keyDate = getKeyDate(university, now)
+  // The decision, the day you submitted, or the deadline, from lib/status
+  const keyDate = getKeyDateCard(university, now)
   const professors = getLinkedProfessors(applications, university.id)
   const readyCount = university.documents.filter((d) => d.done).length
   const subtitle = [university.organization, university.country, university.intake].filter(Boolean).join(' · ')

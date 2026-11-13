@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router'
 import clsx from 'clsx'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useApplications } from '@/lib/applications-store'
-import { findApplication, formatDaysAgo, getInitials, needsFollowUp } from '@/lib/applications'
+import { findApplication, formatDaysAgo, getInitials } from '@/lib/applications'
+import { getStatus, type ApplicationStatus } from '@/lib/status'
 import ApplicationCard from '@/components/ApplicationCard'
 import {
   DetailTopBar,
@@ -23,8 +24,9 @@ const openEmail = (to: string, subject?: string) => {
   return Linking.openURL(`mailto:${to}${query}`)
 }
 
-// Headline, colour and main action for where this conversation stands
-const getStatus = (professor: ProfessorApplication, now: Dayjs) => {
+// Headline, colour and main action for where this conversation stands.
+// Whether a follow-up is due comes from lib/status; this picks the words and the button
+const getStatusCard = (professor: ProfessorApplication, status: ApplicationStatus, now: Dayjs) => {
   const sent = professor.sentAt ? `Sent ${formatDaysAgo(professor.sentAt, now)} · ${dayjs(professor.sentAt).format('MMM D')}.` : ''
   const followUpSubject = professor.emailSubject ? `Re: ${professor.emailSubject}` : undefined
 
@@ -42,7 +44,7 @@ const getStatus = (professor: ProfessorApplication, now: Dayjs) => {
     case 'draft':
       return { cardClass: 'bg-muted', title: 'Not sent yet', text: 'Write a short email about why their research interests you.', action: { label: 'Write email', subject: professor.emailSubject } }
     default:
-      if (needsFollowUp(professor, now)) {
+      if (status.followUpDue) {
         return {
           cardClass: 'bg-accent',
           title: 'No reply yet',
@@ -64,7 +66,8 @@ const getStatus = (professor: ProfessorApplication, now: Dayjs) => {
 const ProfessorDetail = ({ professor, now }: { professor: ProfessorApplication; now: Dayjs }) => {
   const router = useRouter()
   const { applications } = useApplications()
-  const status = getStatus(professor, now)
+  const facts = getStatus(professor, now)
+  const status = getStatusCard(professor, facts, now)
   const linked = professor.linkedApplicationId ? findApplication(applications, professor.linkedApplicationId) : undefined
 
   return (
@@ -134,7 +137,8 @@ const ProfessorDetail = ({ professor, now }: { professor: ProfessorApplication; 
         </>
       )}
 
-      {professor.reminders.length > 0 && professor.stage !== 'replied' && professor.stage !== 'declined' && (
+      {/* Reminders are silenced once the conversation is over (replied or declined) */}
+      {professor.reminders.length > 0 && facts.phase !== 'closed' && (
         <>
           <SectionTitle>Reminders</SectionTitle>
           <ReminderChips reminders={professor.reminders} anchor={professor.deadline} />
